@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataCompas360</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        navy: '#0f172a',
+                        navyLight: '#1e293b',
+                        datablue: '#2563eb',
+                        datagreen: '#10b981',
+                        datateal: '#14b8a6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Custom Scrollbar for massive tables */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #e2e8f0; }
+        .sticky-col-2 { position: sticky; left: 150px; background-color: white; z-index: 10; border-right: 2px solid #e2e8f0; }
+        
+        /* Table Headers */
+        th.nested-header { background-color: #1e293b; color: white; padding: 0.75rem 1rem; text-align: center; border-bottom: 1px solid #334155; border-right: 1px solid #334155; }
+        th.sub-header { background-color: #334155; color: #cbd5e1; padding: 0.5rem 1rem; text-align: center; font-size: 0.75rem; border-right: 1px solid #475569; }
+        td.data-cell { padding: 0.75rem 1rem; text-align: center; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        
+        /* Modal Transitions */
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.3s ease-out; }
+        .modal-exit { opacity: 1; transform: scale(1); }
+        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-in; }
+
+        .hide { display: none !important; }
+        
+        /* Grid layout for view match */
+        .match-details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen overflow-hidden flex bg-slate-50">
+
+    <div id="authContainer" class="fixed inset-0 z-50 flex items-center justify-center bg-navy bg-opacity-95 overflow-y-auto">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md my-8 relative">
+            <div class="text-center mb-8">
+                <div class="flex justify-center items-center gap-2 mb-2">
+                    <i class="fas fa-compass text-datateal text-4xl"></i>
+                    <h1 class="text-3xl font-bold text-navy">DataCompas<span class="text-datablue">360</span></h1>
+                </div>
+                <p class="text-slate-500" id="authSubtitle">Sign in to your account</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input type="email" id="loginEmail" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datablue focus:border-datablue outline-none transition" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <input type="password" id="loginPassword" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datablue focus:border-datablue outline-none transition" required>
+                </div>
+                <button type="submit" class="w-full bg-datablue hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-blue-500/30">Sign In</button>
+                <div class="flex justify-between text-sm mt-4">
+                    <a href="#" onclick="toggleAuth('reset')" class="text-datablue hover:underline">Forgot password?</a>
+                    <a href="#" onclick="toggleAuth('signup')" class="text-datateal hover:underline">Create account</a>
+                </div>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signupForm" class="space-y-5 hide">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                    <input type="text" id="signupName" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datateal focus:border-datateal outline-none transition" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input type="email" id="signupEmail" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datateal focus:border-datateal outline-none transition" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <input type="password" id="signupPassword" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datateal focus:border-datateal outline-none transition" required>
+                </div>
+                <button type="submit" class="w-full bg-datateal hover:bg-teal-600 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-teal-500/30">Sign Up</button>
+                <div class="text-center text-sm mt-4">
+                    <span class="text-slate-500">Already have an account?</span>
+                    <a href="#" onclick="toggleAuth('login')" class="text-datablue hover:underline ml-1">Sign In</a>
+                </div>
+            </form>
+
+            <!-- Reset Form -->
+            <form id="resetForm" class="space-y-5 hide">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Account Email</label>
+                    <input type="email" id="resetEmail" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-datagreen focus:border-datagreen outline-none transition" required>
+                </div>
+                <button type="submit" class="w-full bg-datagreen hover:bg-emerald-600 text-white font-semibold py-3 rounded-lg transition shadow-lg shadow-green-500/30">Reset Password</button>
+                <div class="text-center text-sm mt-4">
+                    <a href="#" onclick="toggleAuth('login')" class="text-datablue hover:underline">Back to Sign In</a>
+                </div>
+            </form>
+            
+            <div id="authError" class="mt-4 text-red-500 text-sm text-center font-medium hide"></div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-navy text-white flex-shrink-0 hidden md:flex flex-col transition-all duration-300">
+        <div class="p-6 border-b border-navyLight flex items-center gap-3">
+            <i class="fas fa-compass text-datateal text-3xl"></i>
+            <h1 class="text-2xl font-bold tracking-tight">DataCompas</h1>
+        </div>
+        
+        <div class="p-4 border-b border-navyLight">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-datablue flex items-center justify-center text-xl font-bold" id="userInitial">U</div>
+                <div>
+                    <p class="font-medium text-sm truncate w-32" id="navUserName">User Name</p>
+                    <p class="text-xs text-datateal font-semibold uppercase" id="navUserRole">Role</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2 overflow-y-auto" id="mainNav">
+            <!-- Nav items injected via JS based on role -->
+        </nav>
+
+        <div class="p-4 border-t border-navyLight">
+            <button onclick="handleLogout()" class="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition">
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="font-medium">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden hidden" id="mainAppContent">
+        <!-- Top Header (Mobile Nav & Global Tools) -->
+        <header class="bg-white shadow-sm border-b border-slate-200 h-16 flex items-center justify-between px-4 lg:px-8 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <button class="md:hidden text-slate-500 hover:text-navy text-xl" onclick="document.getElementById('sidebar').classList.toggle('hidden')">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 class="text-xl font-semibold text-navy capitalize" id="currentViewTitle">Dashboard</h2>
+            </div>
+            <div class="flex items-center gap-4 text-sm text-slate-600">
+                <span id="currentDateDisplay" class="hidden sm:inline-block font-medium"></span>
+                <i class="fas fa-bell hover:text-datablue cursor-pointer transition"></i>
+            </div>
+        </header>
+
+        <!-- Dynamic View Container -->
+        <div class="flex-1 overflow-y-auto bg-slate-50 relative" id="viewsContainer">
+            
+            <div id="view-dashboard" class="app-view p-6 lg:p-8 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div><p class="text-sm text-slate-500 font-medium">Total Matches</p><p class="text-3xl font-bold text-navy" id="dashTotalMatches">0</p></div>
+                        <div class="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center text-datablue text-xl"><i class="fas fa-futbol"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div><p class="text-sm text-slate-500 font-medium">Best Matches</p><p class="text-3xl font-bold text-datagreen" id="dashBestMatches">0</p></div>
+                        <div class="w-12 h-12 rounded-lg bg-green-50 flex items-center justify-center text-datagreen text-xl"><i class="fas fa-star"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div><p class="text-sm text-slate-500 font-medium">Active Users</p><p class="text-3xl font-bold text-datateal" id="dashTotalUsers">0</p></div>
+                        <div class="w-12 h-12 rounded-lg bg-teal-50 flex items-center justify-center text-datateal text-xl"><i class="fas fa-users"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div><p class="text-sm text-slate-500 font-medium">System Status</p><p class="text-xl font-bold text-emerald-600">Online</p></div>
+                        <div class="w-12 h-12 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 text-xl"><i class="fas fa-check-circle"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                    <h3 class="text-lg font-semibold text-navy mb-4">Welcome to DataCompas360</h3>
+                    <p class="text-slate-600">Navigate using the sidebar to access full match data, filter through predictions, and manage system settings based on your assigned role.</p>
+                </div>
+            </div>
+
+            <div id="view-all_matches" class="app-view hide h-full flex flex-col">
+                <!-- Filters Section -->
+                <div class="bg-white p-4 lg:p-6 border-b border-slate-200 flex-shrink-0 shadow-sm z-20">
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <h3 class="font-semibold text-navy"><i class="fas fa-filter text-datablue mr-2"></i>Main Filters</h3>
+                            <input type="date" id="filterDate" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-datablue outline-none">
+                            <input type="month" id="filterMonth" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-datablue outline-none">
+                            <select id="filterLeague" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-datablue outline-none min-w-[150px]">
+                                <option value="">All Leagues</option>
+                            </select>
+                            <input type="number" id="filterHomeForm" placeholder="Home Form Rate >= " class="border border-slate-300 rounded px-3 py-1.5 text-sm w-40 outline-none">
+                            <input type="number" id="filterAwayForm" placeholder="Away Form Rate >= " class="border border-slate-300 rounded px-3 py-1.5 text-sm w-40 outline-none">
+                            <select id="filterPrediction" class="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none">
+                                <option value="">Any Prediction</option>
+                                <option value="1">Home (1)</option>
+                                <option value="X">Draw (X)</option>
+                                <option value="2">Away (2)</option>
+                            </select>
+                        </div>
+                        <div class="relative w-full lg:w-64">
+                            <input type="text" id="searchTeam" placeholder="Search team..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-full text-sm focus:ring-2 focus:ring-datablue outline-none">
+                            <i class="fas fa-search absolute left-4 top-2.5 text-slate-400 text-sm"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <button onclick="toggleExtraFilters()" class="text-sm text-datablue font-medium hover:underline"><i class="fas fa-sliders-h mr-1"></i> More Filters</button>
+                        <button onclick="applyFilters()" class="bg-navy hover:bg-navyLight text-white px-4 py-1.5 rounded text-sm font-medium transition">Apply Filters</button>
+                        <button onclick="resetFilters()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-1.5 rounded text-sm font-medium transition">Reset</button>
+                    </div>
+
+                    <!-- Extra Filters (Hidden by default) -->
+                    <div id="extraFilters" class="hidden mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        <!-- Generated via JS to save HTML lines, handled below -->
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="flex-1 overflow-auto bg-white relative p-0 m-0 w-full" id="matchesTableContainer">
+                    <table class="min-w-max w-full text-sm text-left text-slate-600 border-collapse">
+                        <thead class="text-xs bg-navy text-white uppercase sticky top-0 z-30 shadow-md">
+                            <tr>
+                                <th rowspan="2" class="nested-header sticky-col w-[150px]">Home Team</th>
+                                <th rowspan="2" class="nested-header sticky-col-2 w-[150px]">Away Team</th>
+                                <th colspan="3" class="nested-header border-b border-r border-slate-600">Model 1</th>
+                                <th colspan="3" class="nested-header border-b border-r border-slate-600">Model 2</th>
+                                <th colspan="3" class="nested-header border-b border-r border-slate-600">Model 3</th>
+                                <th colspan="3" class="nested-header border-b border-r border-slate-600">Model 4</th>
+                                <th colspan="3" class="nested-header border-b border-r border-slate-600">Model 5</th>
+                                <th rowspan="2" class="nested-header w-24">Match Result</th>
+                                <th rowspan="2" class="nested-header w-24">Action</th>
+                            </tr>
+                            <tr>
+                                <th class="sub-header">Prediction</th><th class="sub-header">Confidence %</th><th class="sub-header">Prob</th>
+                                <th class="sub-header">Prediction</th><th class="sub-header">Prob %</th><th class="sub-header">Prob</th>
+                                <th class="sub-header">Tip</th><th class="sub-header">Likely</th><th class="sub-header">Prob</th>
+                                <th class="sub-header">Prediction</th><th class="sub-header">Prob %</th><th class="sub-header">Prob</th>
+                                <th class="sub-header">Outcome</th><th class="sub-header">Chance</th><th class="sub-header">Prob</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matchesTableBody" class="divide-y divide-slate-200">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="bg-white border-t border-slate-200 p-4 flex items-center justify-between flex-shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                    <span class="text-sm text-slate-600" id="paginationInfo">Showing 0 to 0 of 0 matches</span>
+                    <div class="flex gap-2">
+                        <button onclick="changePage(-1)" class="px-4 py-2 border border-slate-300 rounded text-sm font-medium hover:bg-slate-50 transition" id="btnPrevPage">Back</button>
+                        <button onclick="changePage(1)" class="px-4 py-2 border border-slate-300 rounded text-sm font-medium hover:bg-slate-50 transition" id="btnNextPage">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-users" class="app-view hide p-6 lg:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-navy">System Users</h3>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-slate-600">
+                            <tr>
+                                <th class="px-6 py-3 text-left font-semibold uppercase">Name</th>
+                                <th class="px-6 py-3 text-left font-semibold uppercase">Email</th>
+                                <th class="px-6 py-3 text-left font-semibold uppercase">Role</th>
+                                <th class="px-6 py-3 text-left font-semibold uppercase">Status</th>
+                                <th class="px-6 py-3 text-right font-semibold uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-settings" class="app-view hide p-6 lg:p-8 space-y-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Role Permissions -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h3 class="text-lg font-bold text-navy mb-4 border-b pb-2"><i class="fas fa-shield-alt text-datablue mr-2"></i>Role Permissions</h3>
+                        <div id="permissionsContainer" class="space-y-4">
+                            <!-- Populated by JS -->
+                        </div>
+                        <button onclick="savePermissions()" class="mt-4 bg-datablue text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition w-full">Save Permissions</button>
+                    </div>
+                    
+                    <!-- Best Matches Thresholds -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h3 class="text-lg font-bold text-navy mb-4 border-b pb-2"><i class="fas fa-star text-datagreen mr-2"></i>Best Matches Thresholds</h3>
+                        <p class="text-sm text-slate-500 mb-4">Set minimum values for automatic inclusion in the Best Matches tab.</p>
+                        <div class="grid grid-cols-2 gap-4" id="thresholdsContainer">
+                            <!-- Input fields for thresholds generated by JS -->
+                        </div>
+                        <button onclick="saveThresholds()" class="mt-6 bg-datagreen text-white px-4 py-2 rounded shadow hover:bg-emerald-600 transition w-full">Update Thresholds</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholders -->
+            <div id="view-reports" class="app-view hide p-6 flex flex-col items-center justify-center h-full text-slate-400">
+                <i class="fas fa-chart-bar text-6xl mb-4 text-slate-200"></i>
+                <h2 class="text-2xl font-bold text-slate-500">Reports Module</h2>
+                <p>This module will be built in the future.</p>
+            </div>
+            
+            <div id="view-contribution" class="app-view hide p-6 flex flex-col items-center justify-center h-full text-slate-400">
+                <i class="fas fa-hands-helping text-6xl mb-4 text-slate-200"></i>
+                <h2 class="text-2xl font-bold text-slate-500">Contribution Module</h2>
+                <p>This module will be built in the future.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Match View Modal -->
+    <div id="matchModal" class="fixed inset-0 z-50 flex items-center justify-center bg-navy bg-opacity-70 hide px-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col modal-enter" id="matchModalContent">
+            <div class="bg-navy p-4 flex justify-between items-center text-white flex-shrink-0">
+                <h3 class="text-xl font-bold" id="modalMatchTitle">Match Details</h3>
+                <button onclick="closeModal('matchModal')" class="text-slate-300 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
+                    <div class="text-center flex-1"><p class="text-lg font-bold text-navy" id="modalHomeTeam">-</p><p class="text-xs text-slate-500">Home</p></div>
+                    <div class="px-6 text-center"><p class="text-3xl font-black text-datablue" id="modalResult">-</p><p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-1">Result</p></div>
+                    <div class="text-center flex-1"><p class="text-lg font-bold text-navy" id="modalAwayTeam">-</p><p class="text-xs text-slate-500">Away</p></div>
+                </div>
+                
+                <h4 class="font-semibold text-slate-700 border-b pb-2 mb-4 uppercase text-xs tracking-wider">Detailed Statistics</h4>
+                <div class="match-details-grid" id="modalDetailsGrid">
+                    <!-- Data injected via JS -->
+                </div>
+                
+                <div class="mt-6 flex justify-center">
+                    <a href="#" id="modalUrl" target="_blank" class="bg-datablue hover:bg-blue-700 text-white px-6 py-2 rounded-full text-sm font-medium transition shadow"><i class="fas fa-external-link-alt mr-2"></i>View Source URL</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Edit Modal -->
+    <div id="userModal" class="fixed inset-0 z-50 flex items-center justify-center bg-navy bg-opacity-70 hide px-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md modal-enter" id="userModalContent">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-navy">Edit User</h3>
+                <button onclick="closeModal('userModal')" class="text-slate-400 hover:text-slate-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="editUserId">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                    <input type="text" id="editUserName" class="w-full p-2 border rounded bg-slate-50" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                    <select id="editUserRole" class="w-full p-2 border rounded focus:ring-2 focus:ring-datablue outline-none">
+                        <option value="ordinary">Ordinary</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select id="editUserStatus" class="w-full p-2 border rounded focus:ring-2 focus:ring-datablue outline-none">
+                        <option value="active">Active</option>
+                        <option value="deactivated">Deactivated</option>
+                    </select>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-xl">
+                <button onclick="closeModal('userModal')" class="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-50">Cancel</button>
+                <button onclick="saveUserEdit()" class="px-4 py-2 bg-datablue text-white rounded hover:bg-blue-700">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Notification -->
+    <div id="notification" class="fixed top-4 right-4 z-[60] bg-white border-l-4 p-4 rounded shadow-xl flex items-center gap-3 transform transition-transform duration-300 translate-x-full hide">
+        <i id="notifIcon" class="fas fa-info-circle text-xl"></i>
+        <div>
+            <h4 id="notifTitle" class="font-bold text-sm">Notification</h4>
+            <p id="notifMsg" class="text-xs text-slate-500"></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment variables setup safely
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'datacomp360-default';
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        let firebaseConfig = {};
+        try { firebaseConfig = JSON.parse(firebaseConfigStr); } catch (e) { console.warn("No valid firebase config found"); }
+        
+        let app, db, auth;
+        if(Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        }
+
+        // App State
+        window.appState = {
+            currentUser: null,
+            users: [],
+            matches: [],
+            filteredMatches: [],
+            currentPage: 1,
+            itemsPerPage: 30,
+            currentView: 'home',
+            mode: 'all_matches', // 'all_matches' or 'best_matches'
+            permissions: {
+                ordinary: ['Home', 'All Matches', 'Dashboard'],
+                supervisor: ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports'],
+                admin: ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports', 'Users', 'Settings', 'Contribution']
+            },
+            thresholds: {
+                homeFormRate: 0, awayFormRate: 0, confidence: 50
+            }
+        };
+
+        // UI Helpers
+        window.showNotification = (title, msg, type = 'info') => {
+            const el = document.getElementById('notification');
+            const icon = document.getElementById('notifIcon');
+            document.getElementById('notifTitle').innerText = title;
+            document.getElementById('notifMsg').innerText = msg;
+            
+            el.classList.remove('hide', 'translate-x-full', 'border-datablue', 'border-red-500', 'border-datagreen');
+            icon.className = 'text-xl fas ';
+            
+            if(type === 'success') { el.classList.add('border-datagreen'); icon.classList.add('fa-check-circle', 'text-datagreen'); }
+            else if(type === 'error') { el.classList.add('border-red-500'); icon.classList.add('fa-exclamation-circle', 'text-red-500'); }
+            else { el.classList.add('border-datablue'); icon.classList.add('fa-info-circle', 'text-datablue'); }
+            
+            setTimeout(() => el.classList.remove('translate-x-full'), 10);
+            setTimeout(() => { el.classList.add('translate-x-full'); setTimeout(()=>el.classList.add('hide'), 300); }, 3000);
+        };
+
+        window.openModal = (id) => {
+            const m = document.getElementById(id);
+            m.classList.remove('hide');
+        };
+        window.closeModal = (id) => {
+            const m = document.getElementById(id);
+            const c = document.getElementById(id + 'Content');
+            c.classList.remove('modal-enter'); c.classList.add('modal-exit-active');
+            setTimeout(() => { m.classList.add('hide'); c.classList.remove('modal-exit-active'); c.classList.add('modal-enter'); }, 200);
+        };
+
+        async function initAuth() {
+            if(!auth) { simulateAuthReady(); return; }
+            try {
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) await signInWithCustomToken(auth, token);
+                else await signInAnonymously(auth);
+                console.log("Firebase Auth Success");
+                
+                // Set default data structurally if none exists
+                await ensureInitialData();
+            } catch (error) {
+                console.error("Auth Error:", error);
+                showNotification('Connection Error', 'Could not connect to database.', 'error');
+            }
+        }
+
+        async function ensureInitialData() {
+            if(!db) return;
+            try {
+                // Ensure default Admin user exists in our app_users
+                const adminDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', 'admin@compas.com');
+                const adminSnap = await getDoc(adminDocRef);
+                if(!adminSnap.exists()) {
+                    await setDoc(adminDocRef, { name: 'Super Admin', email: 'admin@compas.com', password: 'admin', role: 'admin', status: 'active' });
+                }
+
+                // Load Settings
+                const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+                const settingsSnap = await getDoc(settingsRef);
+                if(settingsSnap.exists()) {
+                    const data = settingsSnap.data();
+                    if(data.permissions) appState.permissions = data.permissions;
+                    if(data.thresholds) appState.thresholds = data.thresholds;
+                } else {
+                    await setDoc(settingsRef, { permissions: appState.permissions, thresholds: appState.thresholds });
+                }
+
+                // Check for matches, if none, seed dummy data
+                const matchesRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+                const q = query(matchesRef);
+                const querySnapshot = await getDocs(q);
+                if(querySnapshot.empty) {
+                    seedMockMatches();
+                } else {
+                    appState.matches = [];
+                    querySnapshot.forEach(doc => appState.matches.push({id: doc.id, ...doc.data()}));
+                }
+            } catch(e) { console.error("Initial data fetch failed:", e); }
+        }
+
+        function simulateAuthReady() {
+            seedMockMatches();
+            // Just for UI testing if no DB provided
+        }
+
+        // App Level Auth (simulated via Firestore docs to ensure strict domain constraint bypass)
+        window.toggleAuth = (mode) => {
+            document.getElementById('loginForm').classList.add('hide');
+            document.getElementById('signupForm').classList.add('hide');
+            document.getElementById('resetForm').classList.add('hide');
+            document.getElementById('authError').classList.add('hide');
+            
+            if(mode === 'login') { document.getElementById('loginForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Sign in to your account"; }
+            if(mode === 'signup') { document.getElementById('signupForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Create an ordinary account"; }
+            if(mode === 'reset') { document.getElementById('resetForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Reset your password"; }
+        };
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value;
+            const err = document.getElementById('authError');
+            
+            if(email === 'admin@compas.com' && pass === 'admin' && !db) {
+                // local fallback
+                loginSuccess({name: 'Local Admin', email: email, role: 'admin', status: 'active'});
+                return;
+            }
+
+            if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
+
+            try {
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email.toLowerCase());
+                const userSnap = await getDoc(userRef);
+                
+                if(userSnap.exists() && userSnap.data().password === pass) {
+                    const uData = userSnap.data();
+                    if(uData.status !== 'active') {
+                        err.innerText = "Account is deactivated."; err.classList.remove('hide'); return;
+                    }
+                    loginSuccess(uData);
+                } else {
+                    err.innerText = "Invalid credentials."; err.classList.remove('hide');
+                }
+            } catch(e) { err.innerText = "Login failed."; err.classList.remove('hide'); }
+        });
+
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+            const pass = document.getElementById('signupPassword').value;
+            const err = document.getElementById('authError');
+
+            if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
+            
+            try {
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email);
+                const userSnap = await getDoc(userRef);
+                if(userSnap.exists()) { err.innerText = "Email already registered."; err.classList.remove('hide'); return; }
+
+                const newUser = { name, email, password: pass, role: 'ordinary', status: 'active' };
+                await setDoc(userRef, newUser);
+                loginSuccess(newUser);
+                showNotification('Success', 'Account created successfully.', 'success');
+            } catch(e) { err.innerText = "Signup failed."; err.classList.remove('hide'); }
+        });
+
+        document.getElementById('resetForm').addEventListener('submit', async(e) => {
+            e.preventDefault();
+            showNotification('Info', 'Password reset instructions would be sent here.');
+            toggleAuth('login');
+        });
+
+        function loginSuccess(user) {
+            appState.currentUser = user;
+            document.getElementById('authContainer').classList.add('hide');
+            document.getElementById('mainAppContent').classList.remove('hidden');
+            
+            // Setup Profile Header
+            document.getElementById('navUserName').innerText = user.name;
+            document.getElementById('navUserRole').innerText = user.role;
+            document.getElementById('userInitial').innerText = user.name.charAt(0).toUpperCase();
+
+            buildNavigation();
+            
+            // Set Dates to today
+            const today = new Date();
+            document.getElementById('filterDate').valueAsDate = today;
+            document.getElementById('filterMonth').value = today.toISOString().slice(0, 7); // YYYY-MM
+            
+            const formatter = new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            document.getElementById('currentDateDisplay').innerText = formatter.format(today);
+
+            if(user.role === 'admin' || user.role === 'supervisor') loadUsers();
+            
+            navigate('dashboard');
+            updateDashboardStats();
+            buildExtraFilters();
+        }
+
+        window.handleLogout = () => {
+            appState.currentUser = null;
+            document.getElementById('mainAppContent').classList.add('hidden');
+            document.getElementById('authContainer').classList.remove('hide');
+            document.getElementById('loginForm').reset();
+            toggleAuth('login');
+        };
+
+        const allTabs = ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports', 'Users', 'Settings', 'Contribution'];
+        const viewMap = {
+            'Home': 'dashboard', 'Dashboard': 'dashboard', 'All Matches': 'all_matches',
+            'Best Matches': 'all_matches', // Reusing the same view, just different mode
+            'Reports': 'reports', 'Users': 'users', 'Settings': 'settings', 'Contribution': 'contribution'
+        };
+        const iconMap = {
+            'Home': 'fa-home', 'Dashboard': 'fa-chart-pie', 'All Matches': 'fa-list', 'Best Matches': 'fa-star',
+            'Reports': 'fa-chart-bar', 'Users': 'fa-users', 'Settings': 'fa-cog', 'Contribution': 'fa-hands-helping'
+        };
+
+        function buildNavigation() {
+            const nav = document.getElementById('mainNav');
+            nav.innerHTML = '';
+            const role = appState.currentUser.role;
+            const allowedTabs = appState.permissions[role] || [];
+
+            allTabs.forEach(tab => {
+                if(allowedTabs.includes(tab)) {
+                    const vId = viewMap[tab];
+                    const mode = tab === 'Best Matches' ? 'best_matches' : 'all_matches';
+                    const btn = document.createElement('button');
+                    btn.className = `nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-left transition text-slate-300 hover:bg-navyLight hover:text-white`;
+                    btn.innerHTML = `<i class="fas ${iconMap[tab]} w-5 text-center"></i><span class="font-medium">${tab}</span>`;
+                    btn.onclick = () => { navigate(vId, mode, btn); document.getElementById('currentViewTitle').innerText = tab; };
+                    nav.appendChild(btn);
+                }
+            });
+            // Init settings inputs
+            if(role === 'admin') renderSettingsInputs();
+        }
+
+        function navigate(viewId, mode = 'all_matches', btnElement = null) {
+            // Update Active State
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('bg-datablue', 'text-white');
+                b.classList.add('text-slate-300', 'hover:bg-navyLight');
+            });
+            if(btnElement) {
+                btnElement.classList.add('bg-datablue', 'text-white');
+                btnElement.classList.remove('text-slate-300', 'hover:bg-navyLight');
+            }
+
+            // Hide all views
+            document.querySelectorAll('.app-view').forEach(v => v.classList.add('hide'));
+            document.getElementById('view-' + viewId).classList.remove('hide');
+
+            if(viewId === 'all_matches') {
+                appState.mode = mode;
+                document.getElementById('currentViewTitle').innerText = mode === 'best_matches' ? 'Best Matches' : 'All Matches';
+                applyFilters(); // Trigger reload
+            }
+        }
+
+        const extraFilterFields = [
+            { id: 'f_hScored', label: 'Home Scored >=', type: 'number' },
+            { id: 'f_hConceded', label: 'Home Conceded <=', type: 'number' },
+            { id: 'f_aScored', label: 'Away Scored >=', type: 'number' },
+            { id: 'f_aConceded', label: 'Away Conceded <=', type: 'number' },
+            { id: 'f_hPower', label: 'Home Power >=', type: 'number' },
+            { id: 'f_aPower', label: 'Away Power >=', type: 'number' },
+            { id: 'f_formDiff', label: 'Form Diff >=', type: 'number' },
+            { id: 'f_h2hHome', label: 'H2H Home Wins >=', type: 'number' }
+        ];
+
+        function buildExtraFilters() {
+            const c = document.getElementById('extraFilters');
+            c.innerHTML = extraFilterFields.map(f => `
+                <div><input type="${f.type}" id="${f.id}" placeholder="${f.label}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-datablue"></div>
+            `).join('');
+            
+            // Populate Leagues
+            const leagues = [...new Set(appState.matches.map(m => m.league))];
+            const lgSel = document.getElementById('filterLeague');
+            leagues.forEach(l => { lgSel.innerHTML += `<option value="${l}">${l}</option>`; });
+        }
+
+        window.toggleExtraFilters = () => {
+            const el = document.getElementById('extraFilters');
+            el.classList.toggle('hidden');
+        };
+
+        window.resetFilters = () => {
+            document.getElementById('filterLeague').value = '';
+            document.getElementById('filterHomeForm').value = '';
+            document.getElementById('filterAwayForm').value = '';
+            document.getElementById('filterPrediction').value = '';
+            document.getElementById('searchTeam').value = '';
+            extraFilterFields.forEach(f => document.getElementById(f.id).value = '');
+            applyFilters();
+        };
+
+        window.applyFilters = () => {
+            let filtered = appState.matches;
+            const mode = appState.mode;
+
+            // Apply Search Auto League
+            const search = document.getElementById('searchTeam').value.toLowerCase();
+            if(search) {
+                filtered = filtered.filter(m => m.homeTeam.toLowerCase().includes(search) || m.awayTeam.toLowerCase().includes(search));
+                // Auto select league if exactly one matches
+                if(filtered.length > 0) { document.getElementById('filterLeague').value = filtered[0].league; }
+            }
+
+            // Apply Standard Filters
+            const lg = document.getElementById('filterLeague').value;
+            const hForm = parseFloat(document.getElementById('filterHomeForm').value);
+            const aForm = parseFloat(document.getElementById('filterAwayForm').value);
+            const pred = document.getElementById('filterPrediction').value;
+            
+            if(lg) filtered = filtered.filter(m => m.league === lg);
+            if(!isNaN(hForm)) filtered = filtered.filter(m => m.homeFormRate >= hForm);
+            if(!isNaN(aForm)) filtered = filtered.filter(m => m.awayFormRate >= aForm);
+            if(pred) filtered = filtered.filter(m => m.model1.prediction === pred);
+
+            // Apply Best Matches Thresholds from Admin Settings if in best_matches mode
+            if(mode === 'best_matches') {
+                const t = appState.thresholds;
+                filtered = filtered.filter(m => 
+                    m.homeFormRate >= (t.homeFormRate||0) && 
+                    m.awayFormRate >= (t.awayFormRate||0) && 
+                    m.model1.confidence >= (t.confidence||0)
+                );
+            }
+
+            appState.filteredMatches = filtered;
+            appState.currentPage = 1;
+            renderTable();
+        };
+
+        window.changePage = (dir) => {
+            const max = Math.ceil(appState.filteredMatches.length / appState.itemsPerPage);
+            let next = appState.currentPage + dir;
+            if(next >= 1 && next <= max) {
+                appState.currentPage = next;
+                renderTable();
+            }
+        };
+
+        function renderTable() {
+            const tbody = document.getElementById('matchesTableBody');
+            tbody.innerHTML = '';
+            
+            const start = (appState.currentPage - 1) * appState.itemsPerPage;
+            const end = start + appState.itemsPerPage;
+            const paginated = appState.filteredMatches.slice(start, end);
+
+            if(paginated.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="19" class="p-8 text-center text-slate-500">No matches found based on current filters.</td></tr>`;
+            } else {
+                paginated.forEach(m => {
+                    // Result parsing and coloring
+                    let actualOutcome = '';
+                    if(m.matchResult && m.matchResult.includes('-')) {
+                        const [hs, as] = m.matchResult.split('-').map(Number);
+                        actualOutcome = hs > as ? '1' : hs === as ? 'X' : '2';
+                    }
+                    
+                    const m1Color = getColorClass(m.model1.prediction, actualOutcome);
+                    const m2Color = getColorClass(m.model2.prediction, actualOutcome);
+                    const m3Color = getColorClass(m.model3.tip, actualOutcome); // simplified
+                    const m4Color = getColorClass(m.model4.prediction, actualOutcome);
+                    const m5Color = getColorClass(m.model5.prediction, actualOutcome);
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-200">
+                            <td class="data-cell sticky-col font-bold text-slate-800">${m.homeTeam}</td>
+                            <td class="data-cell sticky-col-2 font-bold text-slate-800">${m.awayTeam}</td>
+                            
+                            <!-- Model 1 -->
+                            <td class="data-cell font-bold ${m1Color}">${m.model1.prediction}</td>
+                            <td class="data-cell">${m.model1.confidence}%</td>
+                            <td class="data-cell">${m.model1.prob}</td>
+
+                            <!-- Model 2 -->
+                            <td class="data-cell font-bold ${m2Color}">${m.model2.prediction}</td>
+                            <td class="data-cell">${m.model2.probPct}%</td>
+                            <td class="data-cell">${m.model2.prob}</td>
+
+                            <!-- Model 3 -->
+                            <td class="data-cell font-bold ${m3Color}">${m.model3.tip}</td>
+                            <td class="data-cell text-xs">${m.model3.likely}</td>
+                            <td class="data-cell">${m.model3.prob}</td>
+
+                            <!-- Model 4 -->
+                            <td class="data-cell font-bold ${m4Color}">${m.model4.prediction}</td>
+                            <td class="data-cell">${m.model4.probPct}%</td>
+                            <td class="data-cell">${m.model4.prob}</td>
+
+                            <!-- Model 5 -->
+                            <td class="data-cell font-bold ${m5Color}">${m.model5.prediction}</td>
+                            <td class="data-cell text-xs">${m.model5.chance}</td>
+                            <td class="data-cell">${m.model5.prob}</td>
+
+                            <td class="data-cell font-black tracking-wider bg-slate-100">${m.matchResult}</td>
+                            <td class="data-cell">
+                                <button onclick="viewMatch('${m.id}')" class="bg-datablue text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700 shadow shadow-blue-500/30">View</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Update Pagination Text
+            const t = appState.filteredMatches.length;
+            document.getElementById('paginationInfo').innerText = `Showing ${t>0?start+1:0} to ${Math.min(end, t)} of ${t} matches`;
+            document.getElementById('btnPrevPage').disabled = appState.currentPage === 1;
+            document.getElementById('btnNextPage').disabled = end >= t;
+        }
+
+        function getColorClass(prediction, actual) {
+            if(!actual || !prediction) return '';
+            // normalize representations (e.g. Home = 1, Away = 2, Draw = X)
+            let p = prediction.toString().toUpperCase();
+            if(p.includes('HOME')) p = '1';
+            if(p.includes('AWAY')) p = '2';
+            if(p.includes('DRAW')) p = 'X';
+            
+            if(p === actual) return 'bg-emerald-100 text-emerald-800';
+            return 'bg-red-100 text-red-800';
+        }
+
+        window.viewMatch = (id) => {
+            const m = appState.matches.find(x => x.id === id);
+            if(!m) return;
+
+            document.getElementById('modalHomeTeam').innerText = m.homeTeam;
+            document.getElementById('modalAwayTeam').innerText = m.awayTeam;
+            document.getElementById('modalResult').innerText = m.matchResult || 'VS';
+            document.getElementById('modalUrl').href = m.matchUrl || '#';
+
+            const fields = [
+                { label: 'Home Odds', val: m.homeOdds }, { label: 'Draw Odds', val: m.drawOdds }, { label: 'Away Odds', val: m.awayOdds },
+                { label: 'Home Form', val: m.homeFormRate }, { label: 'Away Form', val: m.awayFormRate }, { label: 'Confidence %', val: m.model1.confidence },
+                { label: 'Correct Score (Est)', val: m.correctScore }, { label: 'H2H Home Wins', val: m.h2hHomeWins }, { label: 'H2H Draw', val: m.h2hDraw }, { label: 'H2H Away Wins', val: m.h2hAwayWins },
+                { label: 'Home Scored Avg', val: m.homeScoredAvg }, { label: 'Home Conceded Avg', val: m.homeConcededAvg }, { label: 'Away Scored Avg', val: m.awayScoredAvg }, { label: 'Away Conceded Avg', val: m.awayConcededAvg },
+                { label: 'Home Power', val: m.homePower }, { label: 'Away Power', val: m.awayPower }, { label: 'Home Position', val: m.homePosition }, { label: 'Away Position', val: m.awayPosition },
+                { label: 'Form Diff', val: m.formDiff }, { label: 'H2H Diff', val: m.h2hDiff }, { label: 'Position Diff', val: m.positionDiff }, { label: 'Scored Diff', val: m.scoredDiff },
+                { label: 'Conceded Diff', val: m.concededDiff }, { label: 'Power Diff', val: m.powerDiff }, { label: 'Prediction Likely', val: m.model3.likely }, { label: 'Level Of Confidence', val: m.levelOfConfidence },
+                { label: 'Match outcome category', val: m.matchOutcomeCategory }, { label: 'Home Form Wins', val: m.homeFormWins }, { label: 'Away Form Wins', val: m.awayFormWins }, { label: 'Form Wins Diff', val: m.formWinsDiff }
+            ];
+
+            let html = '';
+            fields.forEach(f => {
+                html += `
+                    <div class="bg-white p-3 rounded border border-slate-100 shadow-sm flex flex-col justify-center">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">${f.label}</span>
+                        <span class="text-sm font-semibold text-navy">${f.val !== undefined ? f.val : '-'}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('modalDetailsGrid').innerHTML = html;
+            openModal('matchModal');
+        };
+
+        async function loadUsers() {
+            if(!db) return;
+            try {
+                const uRef = collection(db, 'artifacts', appId, 'public', 'data', 'app_users');
+                const snap = await getDocs(query(uRef));
+                appState.users = [];
+                snap.forEach(d => appState.users.push({id: d.id, ...d.data()}));
+                renderUsersTable();
+                
+                document.getElementById('dashTotalUsers').innerText = appState.users.length;
+            } catch(e) { console.error("Error loading users"); }
+        }
+
+        function renderUsersTable() {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = appState.users.map(u => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="font-medium text-slate-800">${u.name}</div></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-slate-500">${u.email}</div></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold uppercase">${u.role}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${u.status==='active'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'} font-semibold uppercase">${u.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        ${appState.currentUser.role === 'admin' && u.email !== appState.currentUser.email ? 
+                            `<button onclick="editUser('${u.id}')" class="text-datablue hover:text-blue-900 font-medium"><i class="fas fa-edit mr-1"></i> Edit</button>` : 
+                            '<span class="text-slate-300">-</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.editUser = (id) => {
+            const u = appState.users.find(x => x.id === id);
+            if(!u) return;
+            document.getElementById('editUserId').value = u.id;
+            document.getElementById('editUserName').value = u.name;
+            document.getElementById('editUserRole').value = u.role;
+            document.getElementById('editUserStatus').value = u.status;
+            openModal('userModal');
+        };
+
+        window.saveUserEdit = async () => {
+            const id = document.getElementById('editUserId').value;
+            const role = document.getElementById('editUserRole').value;
+            const status = document.getElementById('editUserStatus').value;
+            
+            if(db) {
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', id), { role, status });
+                    showNotification('Updated', 'User profile updated.', 'success');
+                    closeModal('userModal');
+                    loadUsers();
+                } catch(e) { showNotification('Error', 'Failed to update user.', 'error'); }
+            }
+        };
+
+        function renderSettingsInputs() {
+            // Permissions
+            const pc = document.getElementById('permissionsContainer');
+            pc.innerHTML = Object.keys(appState.permissions).map(role => `
+                <div class="border rounded p-3 bg-slate-50">
+                    <h4 class="font-bold uppercase text-xs text-navy mb-2">${role} Access</h4>
+                    <div class="flex flex-wrap gap-2">
+                        ${allTabs.map(tab => `
+                            <label class="flex items-center gap-1 text-sm bg-white border px-2 py-1 rounded cursor-pointer hover:bg-slate-100">
+                                <input type="checkbox" class="perm-cb" data-role="${role}" value="${tab}" ${appState.permissions[role].includes(tab)?'checked':''}>
+                                ${tab}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            // Thresholds
+            const tc = document.getElementById('thresholdsContainer');
+            const thresh = appState.thresholds;
+            tc.innerHTML = `
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Home Form Rate</label><input type="number" id="t_homeForm" value="${thresh.homeFormRate}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Away Form Rate</label><input type="number" id="t_awayForm" value="${thresh.awayFormRate}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Confidence %</label><input type="number" id="t_conf" value="${thresh.confidence}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
+            `;
+        }
+
+        window.savePermissions = async () => {
+            const newPerms = { ordinary: [], supervisor: [], admin: [] };
+            document.querySelectorAll('.perm-cb:checked').forEach(cb => {
+                newPerms[cb.dataset.role].push(cb.value);
+            });
+            appState.permissions = newPerms;
+            if(db) await saveSettingsToDb();
+            showNotification('Success', 'Role permissions saved.', 'success');
+            buildNavigation(); // re-render nav for self if changed
+        };
+
+        window.saveThresholds = async () => {
+            appState.thresholds = {
+                homeFormRate: parseFloat(document.getElementById('t_homeForm').value) || 0,
+                awayFormRate: parseFloat(document.getElementById('t_awayForm').value) || 0,
+                confidence: parseFloat(document.getElementById('t_conf').value) || 0
+            };
+            if(db) await saveSettingsToDb();
+            showNotification('Success', 'Best Matches thresholds updated.', 'success');
+        };
+
+        async function saveSettingsToDb() {
+            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
+            await updateDoc(settingsRef, { permissions: appState.permissions, thresholds: appState.thresholds });
+        }
+
+        function updateDashboardStats() {
+            document.getElementById('dashTotalMatches').innerText = appState.matches.length;
+            
+            // Calc best matches locally based on current threshold
+            const t = appState.thresholds;
+            const best = appState.matches.filter(m => m.homeFormRate >= t.homeFormRate && m.model1.confidence >= t.confidence);
+            document.getElementById('dashBestMatches').innerText = best.length;
+        }
+
+        async function seedMockMatches() {
+            const teams = ['Arsenal', 'Chelsea', 'Man City', 'Liverpool', 'Man Utd', 'Tottenham', 'Newcastle', 'Aston Villa'];
+            const generateMatch = (id) => {
+                const h = teams[Math.floor(Math.random()*teams.length)];
+                let a = teams[Math.floor(Math.random()*teams.length)];
+                while(a===h) a = teams[Math.floor(Math.random()*teams.length)];
+                
+                const outChance = Math.random();
+                const pred = outChance > 0.5 ? '1' : (outChance > 0.2 ? 'X' : '2');
+                const acts = ['2-1', '1-1', '0-2', '3-0', '1-0', '0-0', '2-2'];
+                
+                return {
+                    id: 'm'+id,
+                    date: '08/17/2026', month: '08/2026', league: 'Premier League',
+                    homeTeam: h, awayTeam: a,
+                    homeFormRate: Math.floor(Math.random()*100), awayFormRate: Math.floor(Math.random()*100),
+                    model1: { prediction: pred, confidence: Math.floor(Math.random()*40)+60, prob: (Math.random()*0.5+0.5).toFixed(2) },
+                    model2: { prediction: pred, probPct: Math.floor(Math.random()*30)+70, prob: (Math.random()*0.5+0.5).toFixed(2) },
+                    model3: { tip: 'Home Win', likely: 'Highly Probable', prob: '0.85' },
+                    model4: { prediction: '1', probPct: 75, prob: '0.75' },
+                    model5: { prediction: '1', chance: 'Good', prob: '0.70' },
+                    matchResult: acts[Math.floor(Math.random()*acts.length)],
+                    homeOdds: (Math.random()*2 + 1.2).toFixed(2), drawOdds: (Math.random()*2 + 2.5).toFixed(2), awayOdds: (Math.random()*4 + 1.5).toFixed(2),
+                    correctScore: '2-1', matchUrl: 'https://example.com/match',
+                    h2hHomeWins: Math.floor(Math.random()*10), h2hDraw: Math.floor(Math.random()*5), h2hAwayWins: Math.floor(Math.random()*10),
+                    homeScoredAvg: (Math.random()*3).toFixed(1), homeConcededAvg: (Math.random()*2).toFixed(1),
+                    awayScoredAvg: (Math.random()*3).toFixed(1), awayConcededAvg: (Math.random()*2).toFixed(1),
+                    homePower: Math.floor(Math.random()*50)+50, awayPower: Math.floor(Math.random()*50)+50,
+                    homePosition: Math.floor(Math.random()*20)+1, awayPosition: Math.floor(Math.random()*20)+1,
+                    formDiff: Math.floor(Math.random()*20)-10, h2hDiff: Math.floor(Math.random()*5)-2,
+                    positionDiff: Math.floor(Math.random()*10)-5, scoredDiff: (Math.random()*2-1).toFixed(1),
+                    concededDiff: (Math.random()*2-1).toFixed(1), powerDiff: Math.floor(Math.random()*20)-10,
+                    levelOfConfidence: 'High', matchOutcomeCategory: 'Home Dominance',
+                    homeFormWins: Math.floor(Math.random()*5), awayFormWins: Math.floor(Math.random()*5), formWinsDiff: Math.floor(Math.random()*4)-2
+                };
+            };
+
+            const newMatches = Array.from({length: 45}, (_, i) => generateMatch(i));
+            
+            if(db) {
+                const batch = [];
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+                for(let m of newMatches) {
+                    await setDoc(doc(colRef, m.id), m);
+                }
+            }
+            
+            appState.matches = newMatches;
+            console.log("Mock data generated.");
+        }
+
+        // Initialize App
+        window.onload = () => {
+            initAuth();
+            
+            // Search Input listener for immediate filtering
+            document.getElementById('searchTeam').addEventListener('input', () => {
+                clearTimeout(window.searchTimeout);
+                window.searchTimeout = setTimeout(applyFilters, 300);
+            });
+        };
+
+    </script>
+</body>
+</html>
