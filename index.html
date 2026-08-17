@@ -403,7 +403,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Environment variables setup safely
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'datacomp360-default';
         const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
         let firebaseConfig = {};
@@ -416,8 +415,10 @@
             auth = getAuth(app);
         }
 
-        // App State
-        window.appState = {
+        // ==========================================
+        // MODULE 1: GLOBAL STATE & UI UTILITIES
+        // ==========================================
+        const AppState = {
             currentUser: null,
             users: [],
             matches: [],
@@ -425,638 +426,536 @@
             currentPage: 1,
             itemsPerPage: 30,
             currentView: 'home',
-            mode: 'all_matches', // 'all_matches' or 'best_matches'
+            mode: 'all_matches',
             permissions: {
                 ordinary: ['Home', 'All Matches', 'Dashboard'],
                 supervisor: ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports'],
                 admin: ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports', 'Users', 'Settings', 'Contribution']
             },
-            thresholds: {
-                homeFormRate: 0, awayFormRate: 0, confidence: 50
-            }
+            thresholds: { homeFormRate: 0, awayFormRate: 0, confidence: 50 }
         };
 
-        // UI Helpers
-        window.showNotification = (title, msg, type = 'info') => {
-            const el = document.getElementById('notification');
-            const icon = document.getElementById('notifIcon');
-            document.getElementById('notifTitle').innerText = title;
-            document.getElementById('notifMsg').innerText = msg;
-            
-            el.classList.remove('hide', 'translate-x-full', 'border-datablue', 'border-red-500', 'border-datagreen');
-            icon.className = 'text-xl fas ';
-            
-            if(type === 'success') { el.classList.add('border-datagreen'); icon.classList.add('fa-check-circle', 'text-datagreen'); }
-            else if(type === 'error') { el.classList.add('border-red-500'); icon.classList.add('fa-exclamation-circle', 'text-red-500'); }
-            else { el.classList.add('border-datablue'); icon.classList.add('fa-info-circle', 'text-datablue'); }
-            
-            setTimeout(() => el.classList.remove('translate-x-full'), 10);
-            setTimeout(() => { el.classList.add('translate-x-full'); setTimeout(()=>el.classList.add('hide'), 300); }, 3000);
-        };
-
-        window.openModal = (id) => {
-            const m = document.getElementById(id);
-            m.classList.remove('hide');
-        };
-        window.closeModal = (id) => {
-            const m = document.getElementById(id);
-            const c = document.getElementById(id + 'Content');
-            c.classList.remove('modal-enter'); c.classList.add('modal-exit-active');
-            setTimeout(() => { m.classList.add('hide'); c.classList.remove('modal-exit-active'); c.classList.add('modal-enter'); }, 200);
-        };
-
-        async function initAuth() {
-            if(!auth) { simulateAuthReady(); return; }
-            try {
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) await signInWithCustomToken(auth, token);
-                else await signInAnonymously(auth);
-                console.log("Firebase Auth Success");
+        const UI = {
+            showNotification(title, msg, type = 'info') {
+                const el = document.getElementById('notification');
+                const icon = document.getElementById('notifIcon');
+                document.getElementById('notifTitle').innerText = title;
+                document.getElementById('notifMsg').innerText = msg;
                 
-                // Set default data structurally if none exists
-                await ensureInitialData();
-            } catch (error) {
-                console.error("Auth Error:", error);
-                showNotification('Connection Error', 'Could not connect to database.', 'error');
+                el.classList.remove('hide', 'translate-x-full', 'border-datablue', 'border-red-500', 'border-datagreen');
+                icon.className = 'text-xl fas ';
+                
+                if(type === 'success') { el.classList.add('border-datagreen'); icon.classList.add('fa-check-circle', 'text-datagreen'); }
+                else if(type === 'error') { el.classList.add('border-red-500'); icon.classList.add('fa-exclamation-circle', 'text-red-500'); }
+                else { el.classList.add('border-datablue'); icon.classList.add('fa-info-circle', 'text-datablue'); }
+                
+                setTimeout(() => el.classList.remove('translate-x-full'), 10);
+                setTimeout(() => { el.classList.add('translate-x-full'); setTimeout(()=>el.classList.add('hide'), 300); }, 3000);
+            },
+            openModal(id) { document.getElementById(id).classList.remove('hide'); },
+            closeModal(id) {
+                const m = document.getElementById(id);
+                const c = document.getElementById(id + 'Content');
+                c.classList.remove('modal-enter'); c.classList.add('modal-exit-active');
+                setTimeout(() => { m.classList.add('hide'); c.classList.remove('modal-exit-active'); c.classList.add('modal-enter'); }, 200);
             }
-        }
+        };
 
-        async function ensureInitialData() {
-            if(!db) return;
-            try {
-                // Ensure default Admin user exists in our app_users
-                const adminDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', 'admin@compas.com');
-                const adminSnap = await getDoc(adminDocRef);
-                if(!adminSnap.exists()) {
-                    await setDoc(adminDocRef, { name: 'Super Admin', email: 'admin@compas.com', password: 'admin', role: 'admin', status: 'active' });
-                }
-
-                // Load Settings
+        // ==========================================
+        // MODULE 2: DATABASE SERVICE
+        // Abstracted so you can easily swap this to Realtime DB later
+        // ==========================================
+        const DBService = {
+            async getUser(email) {
+                if(!db) return null;
+                const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email.toLowerCase()));
+                return snap.exists() ? snap.data() : null;
+            },
+            async saveUser(email, data) {
+                if(!db) return;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email.toLowerCase()), data);
+            },
+            async updateUser(id, data) {
+                if(!db) return;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', id), data);
+            },
+            async getAllUsers() {
+                if(!db) return [];
+                const snap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'app_users')));
+                let users = [];
+                snap.forEach(d => users.push({id: d.id, ...d.data()}));
+                return users;
+            },
+            async getSettings() {
+                if(!db) return null;
+                const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config'));
+                return snap.exists() ? snap.data() : null;
+            },
+            async saveSettings(data) {
+                if(!db) return;
                 const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-                const settingsSnap = await getDoc(settingsRef);
-                if(settingsSnap.exists()) {
-                    const data = settingsSnap.data();
-                    if(data.permissions) appState.permissions = data.permissions;
-                    if(data.thresholds) appState.thresholds = data.thresholds;
+                await setDoc(settingsRef, data, { merge: true });
+            },
+            async getMatches() {
+                if(!db) return [];
+                const snap = await getDocs(query(collection(db, 'artifacts', appId, 'public', 'data', 'matches')));
+                let matches = [];
+                snap.forEach(d => matches.push({id: d.id, ...d.data()}));
+                return matches;
+            },
+            async saveMatchBulk(matchesArray) {
+                if(!db) return;
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
+                for(let m of matchesArray) { await setDoc(doc(colRef, m.id), m); }
+            },
+            async ensureInitialData() {
+                if(!db) return;
+                // Seed Admin
+                let admin = await this.getUser('admin@compas.com');
+                if(!admin) await this.saveUser('admin@compas.com', { name: 'Super Admin', email: 'admin@compas.com', password: 'admin', role: 'admin', status: 'active' });
+                // Load Settings
+                let settings = await this.getSettings();
+                if(settings) {
+                    if(settings.permissions) AppState.permissions = settings.permissions;
+                    if(settings.thresholds) AppState.thresholds = settings.thresholds;
                 } else {
-                    await setDoc(settingsRef, { permissions: appState.permissions, thresholds: appState.thresholds });
+                    await this.saveSettings({ permissions: AppState.permissions, thresholds: AppState.thresholds });
                 }
-
-                // Check for matches, if none, seed dummy data
-                const matchesRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
-                const q = query(matchesRef);
-                const querySnapshot = await getDocs(q);
-                if(querySnapshot.empty) {
-                    seedMockMatches();
+                // Check Matches
+                let matches = await this.getMatches();
+                if(matches.length === 0) {
+                    this.seedMockMatches();
                 } else {
-                    appState.matches = [];
-                    querySnapshot.forEach(doc => appState.matches.push({id: doc.id, ...doc.data()}));
+                    AppState.matches = matches;
                 }
-            } catch(e) { console.error("Initial data fetch failed:", e); }
-        }
-
-        function simulateAuthReady() {
-            seedMockMatches();
-            // Just for UI testing if no DB provided
-        }
-
-        // App Level Auth (simulated via Firestore docs to ensure strict domain constraint bypass)
-        window.toggleAuth = (mode) => {
-            document.getElementById('loginForm').classList.add('hide');
-            document.getElementById('signupForm').classList.add('hide');
-            document.getElementById('resetForm').classList.add('hide');
-            document.getElementById('authError').classList.add('hide');
-            
-            if(mode === 'login') { document.getElementById('loginForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Sign in to your account"; }
-            if(mode === 'signup') { document.getElementById('signupForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Create an ordinary account"; }
-            if(mode === 'reset') { document.getElementById('resetForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Reset your password"; }
+            },
+            seedMockMatches() {
+                const teams = ['Arsenal', 'Chelsea', 'Man City', 'Liverpool', 'Man Utd', 'Tottenham', 'Newcastle', 'Aston Villa'];
+                const gen = (id) => {
+                    const h = teams[Math.floor(Math.random()*teams.length)];
+                    let a = teams[Math.floor(Math.random()*teams.length)];
+                    while(a===h) a = teams[Math.floor(Math.random()*teams.length)];
+                    const outChance = Math.random();
+                    const pred = outChance > 0.5 ? '1' : (outChance > 0.2 ? 'X' : '2');
+                    const acts = ['2-1', '1-1', '0-2', '3-0', '1-0', '0-0', '2-2'];
+                    return {
+                        id: 'm'+id, date: '08/17/2026', month: '08/2026', league: 'Premier League', homeTeam: h, awayTeam: a,
+                        homeFormRate: Math.floor(Math.random()*100), awayFormRate: Math.floor(Math.random()*100),
+                        model1: { prediction: pred, confidence: Math.floor(Math.random()*40)+60, prob: (Math.random()*0.5+0.5).toFixed(2) },
+                        model2: { prediction: pred, probPct: Math.floor(Math.random()*30)+70, prob: (Math.random()*0.5+0.5).toFixed(2) },
+                        model3: { tip: 'Home Win', likely: 'Highly Probable', prob: '0.85' },
+                        model4: { prediction: '1', probPct: 75, prob: '0.75' },
+                        model5: { prediction: '1', chance: 'Good', prob: '0.70' },
+                        matchResult: acts[Math.floor(Math.random()*acts.length)]
+                    };
+                };
+                const newMatches = Array.from({length: 45}, (_, i) => gen(i));
+                this.saveMatchBulk(newMatches);
+                AppState.matches = newMatches;
+            }
         };
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value.trim();
-            const pass = document.getElementById('loginPassword').value;
-            const err = document.getElementById('authError');
-            
-            if(email === 'admin@compas.com' && pass === 'admin' && !db) {
-                // local fallback
-                loginSuccess({name: 'Local Admin', email: email, role: 'admin', status: 'active'});
-                return;
-            }
-
-            if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
-
-            try {
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email.toLowerCase());
-                const userSnap = await getDoc(userRef);
+        // ==========================================
+        // MODULE 3: AUTHENTICATION
+        // ==========================================
+        const AuthModule = {
+            async init() {
+                if(!auth) { DBService.seedMockMatches(); return; }
+                try {
+                    const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    if (token) await signInWithCustomToken(auth, token);
+                    else await signInAnonymously(auth);
+                    await DBService.ensureInitialData();
+                } catch (e) {
+                    console.error(e);
+                    UI.showNotification('Error', 'Database connect failed.', 'error');
+                }
+            },
+            toggleView(mode) {
+                ['loginForm', 'signupForm', 'resetForm', 'authError'].forEach(id => document.getElementById(id).classList.add('hide'));
+                if(mode === 'login') { document.getElementById('loginForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Sign in to your account"; }
+                if(mode === 'signup') { document.getElementById('signupForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Create an ordinary account"; }
+                if(mode === 'reset') { document.getElementById('resetForm').classList.remove('hide'); document.getElementById('authSubtitle').innerText = "Reset your password"; }
+            },
+            async handleLogin(e) {
+                e.preventDefault();
+                const email = document.getElementById('loginEmail').value.trim();
+                const pass = document.getElementById('loginPassword').value;
+                const err = document.getElementById('authError');
                 
-                if(userSnap.exists() && userSnap.data().password === pass) {
-                    const uData = userSnap.data();
-                    if(uData.status !== 'active') {
-                        err.innerText = "Account is deactivated."; err.classList.remove('hide'); return;
+                if(email === 'admin@compas.com' && pass === 'admin' && !db) { this.loginSuccess({name: 'Local Admin', email: email, role: 'admin', status: 'active'}); return; }
+                if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
+
+                try {
+                    const uData = await DBService.getUser(email);
+                    if(uData && uData.password === pass) {
+                        if(uData.status !== 'active') { err.innerText = "Account is deactivated."; err.classList.remove('hide'); return; }
+                        this.loginSuccess(uData);
+                    } else { err.innerText = "Invalid credentials."; err.classList.remove('hide'); }
+                } catch(e) { err.innerText = "Login failed."; err.classList.remove('hide'); }
+            },
+            async handleSignup(e) {
+                e.preventDefault();
+                const name = document.getElementById('signupName').value.trim();
+                const email = document.getElementById('signupEmail').value.trim().toLowerCase();
+                const pass = document.getElementById('signupPassword').value;
+                const err = document.getElementById('authError');
+
+                if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
+                try {
+                    const existing = await DBService.getUser(email);
+                    if(existing) { err.innerText = "Email already registered."; err.classList.remove('hide'); return; }
+                    const newUser = { name, email, password: pass, role: 'ordinary', status: 'active' };
+                    await DBService.saveUser(email, newUser);
+                    this.loginSuccess(newUser);
+                    UI.showNotification('Success', 'Account created successfully.', 'success');
+                } catch(e) { err.innerText = "Signup failed."; err.classList.remove('hide'); }
+            },
+            loginSuccess(user) {
+                AppState.currentUser = user;
+                document.getElementById('authContainer').classList.add('hide');
+                document.getElementById('mainAppContent').classList.remove('hidden');
+                
+                document.getElementById('navUserName').innerText = user.name;
+                document.getElementById('navUserRole').innerText = user.role;
+                document.getElementById('userInitial').innerText = user.name.charAt(0).toUpperCase();
+
+                NavModule.build();
+                DashboardModule.update();
+                MatchesModule.init();
+                
+                if(user.role === 'admin' || user.role === 'supervisor') UsersModule.load();
+                if(user.role === 'admin') SettingsModule.render();
+                
+                NavModule.navigate('dashboard');
+            },
+            logout() {
+                AppState.currentUser = null;
+                document.getElementById('mainAppContent').classList.add('hidden');
+                document.getElementById('authContainer').classList.remove('hide');
+                document.getElementById('loginForm').reset();
+                this.toggleView('login');
+            }
+        };
+
+        // ==========================================
+        // MODULE 4: NAVIGATION
+        // ==========================================
+        const NavModule = {
+            allTabs: ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports', 'Users', 'Settings', 'Contribution'],
+            viewMap: { 'Home': 'dashboard', 'Dashboard': 'dashboard', 'All Matches': 'all_matches', 'Best Matches': 'all_matches', 'Reports': 'reports', 'Users': 'users', 'Settings': 'settings', 'Contribution': 'contribution' },
+            iconMap: { 'Home': 'fa-home', 'Dashboard': 'fa-chart-pie', 'All Matches': 'fa-list', 'Best Matches': 'fa-star', 'Reports': 'fa-chart-bar', 'Users': 'fa-users', 'Settings': 'fa-cog', 'Contribution': 'fa-hands-helping' },
+            
+            build() {
+                const nav = document.getElementById('mainNav');
+                nav.innerHTML = '';
+                const allowedTabs = AppState.permissions[AppState.currentUser.role] || [];
+
+                this.allTabs.forEach(tab => {
+                    if(allowedTabs.includes(tab)) {
+                        const vId = this.viewMap[tab];
+                        const mode = tab === 'Best Matches' ? 'best_matches' : 'all_matches';
+                        const btn = document.createElement('button');
+                        btn.className = `nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-left transition text-slate-300 hover:bg-navyLight hover:text-white`;
+                        btn.innerHTML = `<i class="fas ${this.iconMap[tab]} w-5 text-center"></i><span class="font-medium">${tab}</span>`;
+                        btn.onclick = () => { this.navigate(vId, mode, btn); document.getElementById('currentViewTitle').innerText = tab; };
+                        nav.appendChild(btn);
                     }
-                    loginSuccess(uData);
-                } else {
-                    err.innerText = "Invalid credentials."; err.classList.remove('hide');
-                }
-            } catch(e) { err.innerText = "Login failed."; err.classList.remove('hide'); }
-        });
-
-        document.getElementById('signupForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('signupName').value.trim();
-            const email = document.getElementById('signupEmail').value.trim().toLowerCase();
-            const pass = document.getElementById('signupPassword').value;
-            const err = document.getElementById('authError');
-
-            if(!db) { err.innerText = "Database not connected."; err.classList.remove('hide'); return; }
-            
-            try {
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'app_users', email);
-                const userSnap = await getDoc(userRef);
-                if(userSnap.exists()) { err.innerText = "Email already registered."; err.classList.remove('hide'); return; }
-
-                const newUser = { name, email, password: pass, role: 'ordinary', status: 'active' };
-                await setDoc(userRef, newUser);
-                loginSuccess(newUser);
-                showNotification('Success', 'Account created successfully.', 'success');
-            } catch(e) { err.innerText = "Signup failed."; err.classList.remove('hide'); }
-        });
-
-        document.getElementById('resetForm').addEventListener('submit', async(e) => {
-            e.preventDefault();
-            showNotification('Info', 'Password reset instructions would be sent here.');
-            toggleAuth('login');
-        });
-
-        function loginSuccess(user) {
-            appState.currentUser = user;
-            document.getElementById('authContainer').classList.add('hide');
-            document.getElementById('mainAppContent').classList.remove('hidden');
-            
-            // Setup Profile Header
-            document.getElementById('navUserName').innerText = user.name;
-            document.getElementById('navUserRole').innerText = user.role;
-            document.getElementById('userInitial').innerText = user.name.charAt(0).toUpperCase();
-
-            buildNavigation();
-            
-            // Set Dates to today
-            const today = new Date();
-            document.getElementById('filterDate').valueAsDate = today;
-            document.getElementById('filterMonth').value = today.toISOString().slice(0, 7); // YYYY-MM
-            
-            const formatter = new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-            document.getElementById('currentDateDisplay').innerText = formatter.format(today);
-
-            if(user.role === 'admin' || user.role === 'supervisor') loadUsers();
-            
-            navigate('dashboard');
-            updateDashboardStats();
-            buildExtraFilters();
-        }
-
-        window.handleLogout = () => {
-            appState.currentUser = null;
-            document.getElementById('mainAppContent').classList.add('hidden');
-            document.getElementById('authContainer').classList.remove('hide');
-            document.getElementById('loginForm').reset();
-            toggleAuth('login');
-        };
-
-        const allTabs = ['Home', 'All Matches', 'Dashboard', 'Best Matches', 'Reports', 'Users', 'Settings', 'Contribution'];
-        const viewMap = {
-            'Home': 'dashboard', 'Dashboard': 'dashboard', 'All Matches': 'all_matches',
-            'Best Matches': 'all_matches', // Reusing the same view, just different mode
-            'Reports': 'reports', 'Users': 'users', 'Settings': 'settings', 'Contribution': 'contribution'
-        };
-        const iconMap = {
-            'Home': 'fa-home', 'Dashboard': 'fa-chart-pie', 'All Matches': 'fa-list', 'Best Matches': 'fa-star',
-            'Reports': 'fa-chart-bar', 'Users': 'fa-users', 'Settings': 'fa-cog', 'Contribution': 'fa-hands-helping'
-        };
-
-        function buildNavigation() {
-            const nav = document.getElementById('mainNav');
-            nav.innerHTML = '';
-            const role = appState.currentUser.role;
-            const allowedTabs = appState.permissions[role] || [];
-
-            allTabs.forEach(tab => {
-                if(allowedTabs.includes(tab)) {
-                    const vId = viewMap[tab];
-                    const mode = tab === 'Best Matches' ? 'best_matches' : 'all_matches';
-                    const btn = document.createElement('button');
-                    btn.className = `nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-left transition text-slate-300 hover:bg-navyLight hover:text-white`;
-                    btn.innerHTML = `<i class="fas ${iconMap[tab]} w-5 text-center"></i><span class="font-medium">${tab}</span>`;
-                    btn.onclick = () => { navigate(vId, mode, btn); document.getElementById('currentViewTitle').innerText = tab; };
-                    nav.appendChild(btn);
-                }
-            });
-            // Init settings inputs
-            if(role === 'admin') renderSettingsInputs();
-        }
-
-        function navigate(viewId, mode = 'all_matches', btnElement = null) {
-            // Update Active State
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-datablue', 'text-white');
-                b.classList.add('text-slate-300', 'hover:bg-navyLight');
-            });
-            if(btnElement) {
-                btnElement.classList.add('bg-datablue', 'text-white');
-                btnElement.classList.remove('text-slate-300', 'hover:bg-navyLight');
-            }
-
-            // Hide all views
-            document.querySelectorAll('.app-view').forEach(v => v.classList.add('hide'));
-            document.getElementById('view-' + viewId).classList.remove('hide');
-
-            if(viewId === 'all_matches') {
-                appState.mode = mode;
-                document.getElementById('currentViewTitle').innerText = mode === 'best_matches' ? 'Best Matches' : 'All Matches';
-                applyFilters(); // Trigger reload
-            }
-        }
-
-        const extraFilterFields = [
-            { id: 'f_hScored', label: 'Home Scored >=', type: 'number' },
-            { id: 'f_hConceded', label: 'Home Conceded <=', type: 'number' },
-            { id: 'f_aScored', label: 'Away Scored >=', type: 'number' },
-            { id: 'f_aConceded', label: 'Away Conceded <=', type: 'number' },
-            { id: 'f_hPower', label: 'Home Power >=', type: 'number' },
-            { id: 'f_aPower', label: 'Away Power >=', type: 'number' },
-            { id: 'f_formDiff', label: 'Form Diff >=', type: 'number' },
-            { id: 'f_h2hHome', label: 'H2H Home Wins >=', type: 'number' }
-        ];
-
-        function buildExtraFilters() {
-            const c = document.getElementById('extraFilters');
-            c.innerHTML = extraFilterFields.map(f => `
-                <div><input type="${f.type}" id="${f.id}" placeholder="${f.label}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-datablue"></div>
-            `).join('');
-            
-            // Populate Leagues
-            const leagues = [...new Set(appState.matches.map(m => m.league))];
-            const lgSel = document.getElementById('filterLeague');
-            leagues.forEach(l => { lgSel.innerHTML += `<option value="${l}">${l}</option>`; });
-        }
-
-        window.toggleExtraFilters = () => {
-            const el = document.getElementById('extraFilters');
-            el.classList.toggle('hidden');
-        };
-
-        window.resetFilters = () => {
-            document.getElementById('filterLeague').value = '';
-            document.getElementById('filterHomeForm').value = '';
-            document.getElementById('filterAwayForm').value = '';
-            document.getElementById('filterPrediction').value = '';
-            document.getElementById('searchTeam').value = '';
-            extraFilterFields.forEach(f => document.getElementById(f.id).value = '');
-            applyFilters();
-        };
-
-        window.applyFilters = () => {
-            let filtered = appState.matches;
-            const mode = appState.mode;
-
-            // Apply Search Auto League
-            const search = document.getElementById('searchTeam').value.toLowerCase();
-            if(search) {
-                filtered = filtered.filter(m => m.homeTeam.toLowerCase().includes(search) || m.awayTeam.toLowerCase().includes(search));
-                // Auto select league if exactly one matches
-                if(filtered.length > 0) { document.getElementById('filterLeague').value = filtered[0].league; }
-            }
-
-            // Apply Standard Filters
-            const lg = document.getElementById('filterLeague').value;
-            const hForm = parseFloat(document.getElementById('filterHomeForm').value);
-            const aForm = parseFloat(document.getElementById('filterAwayForm').value);
-            const pred = document.getElementById('filterPrediction').value;
-            
-            if(lg) filtered = filtered.filter(m => m.league === lg);
-            if(!isNaN(hForm)) filtered = filtered.filter(m => m.homeFormRate >= hForm);
-            if(!isNaN(aForm)) filtered = filtered.filter(m => m.awayFormRate >= aForm);
-            if(pred) filtered = filtered.filter(m => m.model1.prediction === pred);
-
-            // Apply Best Matches Thresholds from Admin Settings if in best_matches mode
-            if(mode === 'best_matches') {
-                const t = appState.thresholds;
-                filtered = filtered.filter(m => 
-                    m.homeFormRate >= (t.homeFormRate||0) && 
-                    m.awayFormRate >= (t.awayFormRate||0) && 
-                    m.model1.confidence >= (t.confidence||0)
-                );
-            }
-
-            appState.filteredMatches = filtered;
-            appState.currentPage = 1;
-            renderTable();
-        };
-
-        window.changePage = (dir) => {
-            const max = Math.ceil(appState.filteredMatches.length / appState.itemsPerPage);
-            let next = appState.currentPage + dir;
-            if(next >= 1 && next <= max) {
-                appState.currentPage = next;
-                renderTable();
-            }
-        };
-
-        function renderTable() {
-            const tbody = document.getElementById('matchesTableBody');
-            tbody.innerHTML = '';
-            
-            const start = (appState.currentPage - 1) * appState.itemsPerPage;
-            const end = start + appState.itemsPerPage;
-            const paginated = appState.filteredMatches.slice(start, end);
-
-            if(paginated.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="19" class="p-8 text-center text-slate-500">No matches found based on current filters.</td></tr>`;
-            } else {
-                paginated.forEach(m => {
-                    // Result parsing and coloring
-                    let actualOutcome = '';
-                    if(m.matchResult && m.matchResult.includes('-')) {
-                        const [hs, as] = m.matchResult.split('-').map(Number);
-                        actualOutcome = hs > as ? '1' : hs === as ? 'X' : '2';
-                    }
-                    
-                    const m1Color = getColorClass(m.model1.prediction, actualOutcome);
-                    const m2Color = getColorClass(m.model2.prediction, actualOutcome);
-                    const m3Color = getColorClass(m.model3.tip, actualOutcome); // simplified
-                    const m4Color = getColorClass(m.model4.prediction, actualOutcome);
-                    const m5Color = getColorClass(m.model5.prediction, actualOutcome);
-
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 transition border-b border-slate-200">
-                            <td class="data-cell sticky-col font-bold text-slate-800">${m.homeTeam}</td>
-                            <td class="data-cell sticky-col-2 font-bold text-slate-800">${m.awayTeam}</td>
-                            
-                            <!-- Model 1 -->
-                            <td class="data-cell font-bold ${m1Color}">${m.model1.prediction}</td>
-                            <td class="data-cell">${m.model1.confidence}%</td>
-                            <td class="data-cell">${m.model1.prob}</td>
-
-                            <!-- Model 2 -->
-                            <td class="data-cell font-bold ${m2Color}">${m.model2.prediction}</td>
-                            <td class="data-cell">${m.model2.probPct}%</td>
-                            <td class="data-cell">${m.model2.prob}</td>
-
-                            <!-- Model 3 -->
-                            <td class="data-cell font-bold ${m3Color}">${m.model3.tip}</td>
-                            <td class="data-cell text-xs">${m.model3.likely}</td>
-                            <td class="data-cell">${m.model3.prob}</td>
-
-                            <!-- Model 4 -->
-                            <td class="data-cell font-bold ${m4Color}">${m.model4.prediction}</td>
-                            <td class="data-cell">${m.model4.probPct}%</td>
-                            <td class="data-cell">${m.model4.prob}</td>
-
-                            <!-- Model 5 -->
-                            <td class="data-cell font-bold ${m5Color}">${m.model5.prediction}</td>
-                            <td class="data-cell text-xs">${m.model5.chance}</td>
-                            <td class="data-cell">${m.model5.prob}</td>
-
-                            <td class="data-cell font-black tracking-wider bg-slate-100">${m.matchResult}</td>
-                            <td class="data-cell">
-                                <button onclick="viewMatch('${m.id}')" class="bg-datablue text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-700 shadow shadow-blue-500/30">View</button>
-                            </td>
-                        </tr>
-                    `;
                 });
+            },
+            navigate(viewId, mode = 'all_matches', btnElement = null) {
+                document.querySelectorAll('.nav-btn').forEach(b => {
+                    b.classList.remove('bg-datablue', 'text-white');
+                    b.classList.add('text-slate-300', 'hover:bg-navyLight');
+                });
+                if(btnElement) {
+                    btnElement.classList.add('bg-datablue', 'text-white');
+                    btnElement.classList.remove('text-slate-300', 'hover:bg-navyLight');
+                }
+                document.querySelectorAll('.app-view').forEach(v => v.classList.add('hide'));
+                document.getElementById('view-' + viewId).classList.remove('hide');
+
+                if(viewId === 'all_matches') {
+                    AppState.mode = mode;
+                    document.getElementById('currentViewTitle').innerText = mode === 'best_matches' ? 'Best Matches' : 'All Matches';
+                    MatchesModule.applyFilters();
+                }
             }
+        };
 
-            // Update Pagination Text
-            const t = appState.filteredMatches.length;
-            document.getElementById('paginationInfo').innerText = `Showing ${t>0?start+1:0} to ${Math.min(end, t)} of ${t} matches`;
-            document.getElementById('btnPrevPage').disabled = appState.currentPage === 1;
-            document.getElementById('btnNextPage').disabled = end >= t;
-        }
+        // ==========================================
+        // MODULE 5: DASHBOARD
+        // ==========================================
+        const DashboardModule = {
+            update() {
+                document.getElementById('dashTotalMatches').innerText = AppState.matches.length;
+                const t = AppState.thresholds;
+                const best = AppState.matches.filter(m => m.homeFormRate >= t.homeFormRate && m.model1.confidence >= t.confidence);
+                document.getElementById('dashBestMatches').innerText = best.length;
+            }
+        };
 
-        function getColorClass(prediction, actual) {
-            if(!actual || !prediction) return '';
-            // normalize representations (e.g. Home = 1, Away = 2, Draw = X)
-            let p = prediction.toString().toUpperCase();
-            if(p.includes('HOME')) p = '1';
-            if(p.includes('AWAY')) p = '2';
-            if(p.includes('DRAW')) p = 'X';
-            
-            if(p === actual) return 'bg-emerald-100 text-emerald-800';
-            return 'bg-red-100 text-red-800';
-        }
+        // ==========================================
+        // MODULE 6: MATCHES (Filters, Table, Modals)
+        // ==========================================
+        const MatchesModule = {
+            extraFields: [
+                { id: 'f_hScored', label: 'Home Scored >=', type: 'number' },
+                { id: 'f_hConceded', label: 'Home Conceded <=', type: 'number' },
+                { id: 'f_aScored', label: 'Away Scored >=', type: 'number' },
+                { id: 'f_aConceded', label: 'Away Conceded <=', type: 'number' },
+                { id: 'f_hPower', label: 'Home Power >=', type: 'number' },
+                { id: 'f_aPower', label: 'Away Power >=', type: 'number' }
+            ],
+            init() {
+                const today = new Date();
+                document.getElementById('filterDate').valueAsDate = today;
+                document.getElementById('filterMonth').value = today.toISOString().slice(0, 7);
+                const formatter = new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+                document.getElementById('currentDateDisplay').innerText = formatter.format(today);
 
-        window.viewMatch = (id) => {
-            const m = appState.matches.find(x => x.id === id);
-            if(!m) return;
+                // Build Extra Filters
+                const c = document.getElementById('extraFilters');
+                c.innerHTML = this.extraFields.map(f => `<div><input type="${f.type}" id="${f.id}" placeholder="${f.label}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-datablue"></div>`).join('');
+                
+                const leagues = [...new Set(AppState.matches.map(m => m.league))];
+                const lgSel = document.getElementById('filterLeague');
+                leagues.forEach(l => { lgSel.innerHTML += `<option value="${l}">${l}</option>`; });
 
-            document.getElementById('modalHomeTeam').innerText = m.homeTeam;
-            document.getElementById('modalAwayTeam').innerText = m.awayTeam;
-            document.getElementById('modalResult').innerText = m.matchResult || 'VS';
-            document.getElementById('modalUrl').href = m.matchUrl || '#';
+                // Event Listeners
+                document.getElementById('searchTeam').addEventListener('input', () => {
+                    clearTimeout(window.searchTimeout);
+                    window.searchTimeout = setTimeout(() => this.applyFilters(), 300);
+                });
+            },
+            toggleExtra() { document.getElementById('extraFilters').classList.toggle('hidden'); },
+            reset() {
+                ['filterLeague', 'filterHomeForm', 'filterAwayForm', 'filterPrediction', 'searchTeam'].forEach(id => document.getElementById(id).value = '');
+                this.extraFields.forEach(f => document.getElementById(f.id).value = '');
+                this.applyFilters();
+            },
+            applyFilters() {
+                let filtered = AppState.matches;
+                const search = document.getElementById('searchTeam').value.toLowerCase();
+                if(search) {
+                    filtered = filtered.filter(m => m.homeTeam.toLowerCase().includes(search) || m.awayTeam.toLowerCase().includes(search));
+                    if(filtered.length > 0) document.getElementById('filterLeague').value = filtered[0].league;
+                }
 
-            const fields = [
-                { label: 'Home Odds', val: m.homeOdds }, { label: 'Draw Odds', val: m.drawOdds }, { label: 'Away Odds', val: m.awayOdds },
-                { label: 'Home Form', val: m.homeFormRate }, { label: 'Away Form', val: m.awayFormRate }, { label: 'Confidence %', val: m.model1.confidence },
-                { label: 'Correct Score (Est)', val: m.correctScore }, { label: 'H2H Home Wins', val: m.h2hHomeWins }, { label: 'H2H Draw', val: m.h2hDraw }, { label: 'H2H Away Wins', val: m.h2hAwayWins },
-                { label: 'Home Scored Avg', val: m.homeScoredAvg }, { label: 'Home Conceded Avg', val: m.homeConcededAvg }, { label: 'Away Scored Avg', val: m.awayScoredAvg }, { label: 'Away Conceded Avg', val: m.awayConcededAvg },
-                { label: 'Home Power', val: m.homePower }, { label: 'Away Power', val: m.awayPower }, { label: 'Home Position', val: m.homePosition }, { label: 'Away Position', val: m.awayPosition },
-                { label: 'Form Diff', val: m.formDiff }, { label: 'H2H Diff', val: m.h2hDiff }, { label: 'Position Diff', val: m.positionDiff }, { label: 'Scored Diff', val: m.scoredDiff },
-                { label: 'Conceded Diff', val: m.concededDiff }, { label: 'Power Diff', val: m.powerDiff }, { label: 'Prediction Likely', val: m.model3.likely }, { label: 'Level Of Confidence', val: m.levelOfConfidence },
-                { label: 'Match outcome category', val: m.matchOutcomeCategory }, { label: 'Home Form Wins', val: m.homeFormWins }, { label: 'Away Form Wins', val: m.awayFormWins }, { label: 'Form Wins Diff', val: m.formWinsDiff }
-            ];
+                const lg = document.getElementById('filterLeague').value;
+                const hForm = parseFloat(document.getElementById('filterHomeForm').value);
+                const aForm = parseFloat(document.getElementById('filterAwayForm').value);
+                const pred = document.getElementById('filterPrediction').value;
+                
+                if(lg) filtered = filtered.filter(m => m.league === lg);
+                if(!isNaN(hForm)) filtered = filtered.filter(m => m.homeFormRate >= hForm);
+                if(!isNaN(aForm)) filtered = filtered.filter(m => m.awayFormRate >= aForm);
+                if(pred) filtered = filtered.filter(m => m.model1.prediction === pred);
 
-            let html = '';
-            fields.forEach(f => {
-                html += `
-                    <div class="bg-white p-3 rounded border border-slate-100 shadow-sm flex flex-col justify-center">
+                if(AppState.mode === 'best_matches') {
+                    const t = AppState.thresholds;
+                    filtered = filtered.filter(m => m.homeFormRate >= (t.homeFormRate||0) && m.awayFormRate >= (t.awayFormRate||0) && m.model1.confidence >= (t.confidence||0));
+                }
+
+                AppState.filteredMatches = filtered;
+                AppState.currentPage = 1;
+                this.renderTable();
+            },
+            changePage(dir) {
+                const max = Math.ceil(AppState.filteredMatches.length / AppState.itemsPerPage);
+                let next = AppState.currentPage + dir;
+                if(next >= 1 && next <= max) { AppState.currentPage = next; this.renderTable(); }
+            },
+            renderTable() {
+                const tbody = document.getElementById('matchesTableBody');
+                tbody.innerHTML = '';
+                const start = (AppState.currentPage - 1) * AppState.itemsPerPage;
+                const end = start + AppState.itemsPerPage;
+                const paginated = AppState.filteredMatches.slice(start, end);
+
+                if(paginated.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="19" class="p-8 text-center text-slate-500">No matches found.</td></tr>`;
+                } else {
+                    paginated.forEach(m => {
+                        let actualOutcome = '';
+                        if(m.matchResult && m.matchResult.includes('-')) {
+                            const [hs, as] = m.matchResult.split('-').map(Number);
+                            actualOutcome = hs > as ? '1' : hs === as ? 'X' : '2';
+                        }
+                        
+                        const m1C = this.getColorClass(m.model1.prediction, actualOutcome);
+                        const m2C = this.getColorClass(m.model2.prediction, actualOutcome);
+                        const m3C = this.getColorClass(m.model3.tip, actualOutcome);
+                        const m4C = this.getColorClass(m.model4.prediction, actualOutcome);
+                        const m5C = this.getColorClass(m.model5.prediction, actualOutcome);
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-200">
+                                <td class="data-cell sticky-col font-bold text-slate-800">${m.homeTeam}</td>
+                                <td class="data-cell sticky-col-2 font-bold text-slate-800">${m.awayTeam}</td>
+                                <td class="data-cell font-bold ${m1C}">${m.model1.prediction}</td><td class="data-cell">${m.model1.confidence}%</td><td class="data-cell">${m.model1.prob}</td>
+                                <td class="data-cell font-bold ${m2C}">${m.model2.prediction}</td><td class="data-cell">${m.model2.probPct}%</td><td class="data-cell">${m.model2.prob}</td>
+                                <td class="data-cell font-bold ${m3C}">${m.model3.tip}</td><td class="data-cell text-xs">${m.model3.likely}</td><td class="data-cell">${m.model3.prob}</td>
+                                <td class="data-cell font-bold ${m4C}">${m.model4.prediction}</td><td class="data-cell">${m.model4.probPct}%</td><td class="data-cell">${m.model4.prob}</td>
+                                <td class="data-cell font-bold ${m5C}">${m.model5.prediction}</td><td class="data-cell text-xs">${m.model5.chance}</td><td class="data-cell">${m.model5.prob}</td>
+                                <td class="data-cell font-black tracking-wider bg-slate-100">${m.matchResult}</td>
+                                <td class="data-cell"><button onclick="window.viewMatch('${m.id}')" class="bg-datablue text-white px-3 py-1 rounded text-xs hover:bg-blue-700 shadow">View</button></td>
+                            </tr>
+                        `;
+                    });
+                }
+                const t = AppState.filteredMatches.length;
+                document.getElementById('paginationInfo').innerText = `Showing ${t>0?start+1:0} to ${Math.min(end, t)} of ${t} matches`;
+                document.getElementById('btnPrevPage').disabled = AppState.currentPage === 1;
+                document.getElementById('btnNextPage').disabled = end >= t;
+            },
+            getColorClass(prediction, actual) {
+                if(!actual || !prediction) return '';
+                let p = prediction.toString().toUpperCase();
+                if(p.includes('HOME')) p = '1'; if(p.includes('AWAY')) p = '2'; if(p.includes('DRAW')) p = 'X';
+                return p === actual ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800';
+            },
+            viewMatch(id) {
+                const m = AppState.matches.find(x => x.id === id);
+                if(!m) return;
+                document.getElementById('modalHomeTeam').innerText = m.homeTeam;
+                document.getElementById('modalAwayTeam').innerText = m.awayTeam;
+                document.getElementById('modalResult').innerText = m.matchResult || 'VS';
+                
+                const fields = [
+                    { label: 'Home Odds', val: m.homeOdds }, { label: 'Away Odds', val: m.awayOdds },
+                    { label: 'Home Form', val: m.homeFormRate }, { label: 'Away Form', val: m.awayFormRate },
+                    { label: 'Confidence %', val: m.model1.confidence }
+                ];
+
+                let html = '';
+                fields.forEach(f => {
+                    html += `<div class="bg-white p-3 rounded border border-slate-100 shadow-sm flex flex-col justify-center">
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">${f.label}</span>
                         <span class="text-sm font-semibold text-navy">${f.val !== undefined ? f.val : '-'}</span>
-                    </div>
-                `;
-            });
-            document.getElementById('modalDetailsGrid').innerHTML = html;
-            openModal('matchModal');
+                    </div>`;
+                });
+                document.getElementById('modalDetailsGrid').innerHTML = html;
+                UI.openModal('matchModal');
+            }
         };
 
-        async function loadUsers() {
-            if(!db) return;
-            try {
-                const uRef = collection(db, 'artifacts', appId, 'public', 'data', 'app_users');
-                const snap = await getDocs(query(uRef));
-                appState.users = [];
-                snap.forEach(d => appState.users.push({id: d.id, ...d.data()}));
-                renderUsersTable();
-                
-                document.getElementById('dashTotalUsers').innerText = appState.users.length;
-            } catch(e) { console.error("Error loading users"); }
-        }
-
-        function renderUsersTable() {
-            const tbody = document.getElementById('usersTableBody');
-            tbody.innerHTML = appState.users.map(u => `
-                <tr class="hover:bg-slate-50">
-                    <td class="px-6 py-4 whitespace-nowrap"><div class="font-medium text-slate-800">${u.name}</div></td>
-                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-slate-500">${u.email}</div></td>
-                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold uppercase">${u.role}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs rounded-full ${u.status==='active'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'} font-semibold uppercase">${u.status}</span></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        ${appState.currentUser.role === 'admin' && u.email !== appState.currentUser.email ? 
-                            `<button onclick="editUser('${u.id}')" class="text-datablue hover:text-blue-900 font-medium"><i class="fas fa-edit mr-1"></i> Edit</button>` : 
-                            '<span class="text-slate-300">-</span>'}
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        window.editUser = (id) => {
-            const u = appState.users.find(x => x.id === id);
-            if(!u) return;
-            document.getElementById('editUserId').value = u.id;
-            document.getElementById('editUserName').value = u.name;
-            document.getElementById('editUserRole').value = u.role;
-            document.getElementById('editUserStatus').value = u.status;
-            openModal('userModal');
-        };
-
-        window.saveUserEdit = async () => {
-            const id = document.getElementById('editUserId').value;
-            const role = document.getElementById('editUserRole').value;
-            const status = document.getElementById('editUserStatus').value;
-            
-            if(db) {
+        // ==========================================
+        // MODULE 7: USERS MANAGEMENT
+        // ==========================================
+        const UsersModule = {
+            async load() {
+                AppState.users = await DBService.getAllUsers();
+                this.render();
+                document.getElementById('dashTotalUsers').innerText = AppState.users.length;
+            },
+            render() {
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = AppState.users.map(u => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-6 py-4"><div class="font-medium text-slate-800">${u.name}</div></td>
+                        <td class="px-6 py-4"><div class="text-slate-500">${u.email}</div></td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-semibold uppercase">${u.role}</span></td>
+                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs rounded-full ${u.status==='active'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'} font-semibold uppercase">${u.status}</span></td>
+                        <td class="px-6 py-4 text-right">
+                            ${AppState.currentUser.role === 'admin' && u.email !== AppState.currentUser.email ? 
+                                `<button onclick="window.editUser('${u.id}')" class="text-datablue hover:text-blue-900 font-medium"><i class="fas fa-edit mr-1"></i> Edit</button>` : '-'}
+                        </td>
+                    </tr>
+                `).join('');
+            },
+            edit(id) {
+                const u = AppState.users.find(x => x.id === id);
+                if(!u) return;
+                document.getElementById('editUserId').value = u.id;
+                document.getElementById('editUserName').value = u.name;
+                document.getElementById('editUserRole').value = u.role;
+                document.getElementById('editUserStatus').value = u.status;
+                UI.openModal('userModal');
+            },
+            async saveEdit() {
+                const id = document.getElementById('editUserId').value;
+                const role = document.getElementById('editUserRole').value;
+                const status = document.getElementById('editUserStatus').value;
                 try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'app_users', id), { role, status });
-                    showNotification('Updated', 'User profile updated.', 'success');
-                    closeModal('userModal');
-                    loadUsers();
-                } catch(e) { showNotification('Error', 'Failed to update user.', 'error'); }
+                    await DBService.updateUser(id, { role, status });
+                    UI.showNotification('Updated', 'User profile updated.', 'success');
+                    UI.closeModal('userModal');
+                    this.load();
+                } catch(e) { UI.showNotification('Error', 'Failed to update user.', 'error'); }
             }
         };
 
-        function renderSettingsInputs() {
-            // Permissions
-            const pc = document.getElementById('permissionsContainer');
-            pc.innerHTML = Object.keys(appState.permissions).map(role => `
-                <div class="border rounded p-3 bg-slate-50">
-                    <h4 class="font-bold uppercase text-xs text-navy mb-2">${role} Access</h4>
-                    <div class="flex flex-wrap gap-2">
-                        ${allTabs.map(tab => `
-                            <label class="flex items-center gap-1 text-sm bg-white border px-2 py-1 rounded cursor-pointer hover:bg-slate-100">
-                                <input type="checkbox" class="perm-cb" data-role="${role}" value="${tab}" ${appState.permissions[role].includes(tab)?'checked':''}>
-                                ${tab}
-                            </label>
-                        `).join('')}
+        // ==========================================
+        // MODULE 8: SETTINGS MANAGEMENT
+        // ==========================================
+        const SettingsModule = {
+            render() {
+                const pc = document.getElementById('permissionsContainer');
+                pc.innerHTML = Object.keys(AppState.permissions).map(role => `
+                    <div class="border rounded p-3 bg-slate-50">
+                        <h4 class="font-bold uppercase text-xs text-navy mb-2">${role} Access</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${NavModule.allTabs.map(tab => `
+                                <label class="flex items-center gap-1 text-sm bg-white border px-2 py-1 rounded cursor-pointer hover:bg-slate-100">
+                                    <input type="checkbox" class="perm-cb" data-role="${role}" value="${tab}" ${AppState.permissions[role].includes(tab)?'checked':''}>
+                                    ${tab}
+                                </label>
+                            `).join('')}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
 
-            // Thresholds
-            const tc = document.getElementById('thresholdsContainer');
-            const thresh = appState.thresholds;
-            tc.innerHTML = `
-                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Home Form Rate</label><input type="number" id="t_homeForm" value="${thresh.homeFormRate}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
-                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Away Form Rate</label><input type="number" id="t_awayForm" value="${thresh.awayFormRate}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
-                <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Confidence %</label><input type="number" id="t_conf" value="${thresh.confidence}" class="w-full border rounded p-2 text-sm focus:ring-1 outline-none"></div>
-            `;
-        }
-
-        window.savePermissions = async () => {
-            const newPerms = { ordinary: [], supervisor: [], admin: [] };
-            document.querySelectorAll('.perm-cb:checked').forEach(cb => {
-                newPerms[cb.dataset.role].push(cb.value);
-            });
-            appState.permissions = newPerms;
-            if(db) await saveSettingsToDb();
-            showNotification('Success', 'Role permissions saved.', 'success');
-            buildNavigation(); // re-render nav for self if changed
-        };
-
-        window.saveThresholds = async () => {
-            appState.thresholds = {
-                homeFormRate: parseFloat(document.getElementById('t_homeForm').value) || 0,
-                awayFormRate: parseFloat(document.getElementById('t_awayForm').value) || 0,
-                confidence: parseFloat(document.getElementById('t_conf').value) || 0
-            };
-            if(db) await saveSettingsToDb();
-            showNotification('Success', 'Best Matches thresholds updated.', 'success');
-        };
-
-        async function saveSettingsToDb() {
-            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'config');
-            await updateDoc(settingsRef, { permissions: appState.permissions, thresholds: appState.thresholds });
-        }
-
-        function updateDashboardStats() {
-            document.getElementById('dashTotalMatches').innerText = appState.matches.length;
-            
-            // Calc best matches locally based on current threshold
-            const t = appState.thresholds;
-            const best = appState.matches.filter(m => m.homeFormRate >= t.homeFormRate && m.model1.confidence >= t.confidence);
-            document.getElementById('dashBestMatches').innerText = best.length;
-        }
-
-        async function seedMockMatches() {
-            const teams = ['Arsenal', 'Chelsea', 'Man City', 'Liverpool', 'Man Utd', 'Tottenham', 'Newcastle', 'Aston Villa'];
-            const generateMatch = (id) => {
-                const h = teams[Math.floor(Math.random()*teams.length)];
-                let a = teams[Math.floor(Math.random()*teams.length)];
-                while(a===h) a = teams[Math.floor(Math.random()*teams.length)];
-                
-                const outChance = Math.random();
-                const pred = outChance > 0.5 ? '1' : (outChance > 0.2 ? 'X' : '2');
-                const acts = ['2-1', '1-1', '0-2', '3-0', '1-0', '0-0', '2-2'];
-                
-                return {
-                    id: 'm'+id,
-                    date: '08/17/2026', month: '08/2026', league: 'Premier League',
-                    homeTeam: h, awayTeam: a,
-                    homeFormRate: Math.floor(Math.random()*100), awayFormRate: Math.floor(Math.random()*100),
-                    model1: { prediction: pred, confidence: Math.floor(Math.random()*40)+60, prob: (Math.random()*0.5+0.5).toFixed(2) },
-                    model2: { prediction: pred, probPct: Math.floor(Math.random()*30)+70, prob: (Math.random()*0.5+0.5).toFixed(2) },
-                    model3: { tip: 'Home Win', likely: 'Highly Probable', prob: '0.85' },
-                    model4: { prediction: '1', probPct: 75, prob: '0.75' },
-                    model5: { prediction: '1', chance: 'Good', prob: '0.70' },
-                    matchResult: acts[Math.floor(Math.random()*acts.length)],
-                    homeOdds: (Math.random()*2 + 1.2).toFixed(2), drawOdds: (Math.random()*2 + 2.5).toFixed(2), awayOdds: (Math.random()*4 + 1.5).toFixed(2),
-                    correctScore: '2-1', matchUrl: 'https://example.com/match',
-                    h2hHomeWins: Math.floor(Math.random()*10), h2hDraw: Math.floor(Math.random()*5), h2hAwayWins: Math.floor(Math.random()*10),
-                    homeScoredAvg: (Math.random()*3).toFixed(1), homeConcededAvg: (Math.random()*2).toFixed(1),
-                    awayScoredAvg: (Math.random()*3).toFixed(1), awayConcededAvg: (Math.random()*2).toFixed(1),
-                    homePower: Math.floor(Math.random()*50)+50, awayPower: Math.floor(Math.random()*50)+50,
-                    homePosition: Math.floor(Math.random()*20)+1, awayPosition: Math.floor(Math.random()*20)+1,
-                    formDiff: Math.floor(Math.random()*20)-10, h2hDiff: Math.floor(Math.random()*5)-2,
-                    positionDiff: Math.floor(Math.random()*10)-5, scoredDiff: (Math.random()*2-1).toFixed(1),
-                    concededDiff: (Math.random()*2-1).toFixed(1), powerDiff: Math.floor(Math.random()*20)-10,
-                    levelOfConfidence: 'High', matchOutcomeCategory: 'Home Dominance',
-                    homeFormWins: Math.floor(Math.random()*5), awayFormWins: Math.floor(Math.random()*5), formWinsDiff: Math.floor(Math.random()*4)-2
+                const tc = document.getElementById('thresholdsContainer');
+                const thresh = AppState.thresholds;
+                tc.innerHTML = `
+                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Home Form</label><input type="number" id="t_homeForm" value="${thresh.homeFormRate}" class="w-full border rounded p-2 text-sm"></div>
+                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Away Form</label><input type="number" id="t_awayForm" value="${thresh.awayFormRate}" class="w-full border rounded p-2 text-sm"></div>
+                    <div><label class="block text-xs font-bold text-slate-500 mb-1">Min Confidence %</label><input type="number" id="t_conf" value="${thresh.confidence}" class="w-full border rounded p-2 text-sm"></div>
+                `;
+            },
+            async savePerms() {
+                const newPerms = { ordinary: [], supervisor: [], admin: [] };
+                document.querySelectorAll('.perm-cb:checked').forEach(cb => newPerms[cb.dataset.role].push(cb.value));
+                AppState.permissions = newPerms;
+                await DBService.saveSettings({ permissions: AppState.permissions, thresholds: AppState.thresholds });
+                UI.showNotification('Success', 'Role permissions saved.', 'success');
+                NavModule.build();
+            },
+            async saveThresholds() {
+                AppState.thresholds = {
+                    homeFormRate: parseFloat(document.getElementById('t_homeForm').value) || 0,
+                    awayFormRate: parseFloat(document.getElementById('t_awayForm').value) || 0,
+                    confidence: parseFloat(document.getElementById('t_conf').value) || 0
                 };
-            };
-
-            const newMatches = Array.from({length: 45}, (_, i) => generateMatch(i));
-            
-            if(db) {
-                const batch = [];
-                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'matches');
-                for(let m of newMatches) {
-                    await setDoc(doc(colRef, m.id), m);
-                }
+                await DBService.saveSettings({ permissions: AppState.permissions, thresholds: AppState.thresholds });
+                UI.showNotification('Success', 'Best Matches thresholds updated.', 'success');
+                DashboardModule.update();
             }
-            
-            appState.matches = newMatches;
-            console.log("Mock data generated.");
-        }
+        };
+
+        // ==========================================
+        // GLOBAL BINDINGS (For HTML inline handlers)
+        // ==========================================
+        window.toggleAuth = (mode) => AuthModule.toggleView(mode);
+        window.handleLogout = () => AuthModule.logout();
+        window.toggleExtraFilters = () => MatchesModule.toggleExtra();
+        window.resetFilters = () => MatchesModule.reset();
+        window.applyFilters = () => MatchesModule.applyFilters();
+        window.changePage = (dir) => MatchesModule.changePage(dir);
+        window.viewMatch = (id) => MatchesModule.viewMatch(id);
+        window.editUser = (id) => UsersModule.edit(id);
+        window.saveUserEdit = () => UsersModule.saveEdit();
+        window.savePermissions = () => SettingsModule.savePerms();
+        window.saveThresholds = () => SettingsModule.saveThresholds();
+        window.closeModal = UI.closeModal;
+
+        // Form listeners
+        document.getElementById('loginForm').addEventListener('submit', (e) => AuthModule.handleLogin(e));
+        document.getElementById('signupForm').addEventListener('submit', (e) => AuthModule.handleSignup(e));
 
         // Initialize App
-        window.onload = () => {
-            initAuth();
-            
-            // Search Input listener for immediate filtering
-            document.getElementById('searchTeam').addEventListener('input', () => {
-                clearTimeout(window.searchTimeout);
-                window.searchTimeout = setTimeout(applyFilters, 300);
-            });
-        };
+        window.onload = () => AuthModule.init();
 
     </script>
 </body>
