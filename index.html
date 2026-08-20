@@ -5,1057 +5,1579 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DataCompas360</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
                     colors: {
-                        navy: {
-                            800: '#112240',
-                            900: '#0a192f',
-                        },
-                        teal: {
-                            400: '#4fd1c5',
-                            500: '#20c997',
-                            600: '#1cbf8c'
-                        },
-                        dcblue: '#0d6efd',
-                        dcgreen: '#198754',
+                        customNavy: '#1e3a8a',
+                        customTeal: '#0f766e',
+                        customGreen: '#15803d'
                     }
                 }
             }
         }
     </script>
     <style>
-        /* Custom scrollbar for a premium look */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .win-green { background-color: #dcfce7; color: #166534; }
+        .loss-red { background-color: #fee2e2; color: #991b1b; }
+        .tab-btn.active { border-bottom: 3px solid #1e3a8a; color: #1e3a8a; font-weight: bold; }
+        
+        /* Custom scrollbar for tables */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .modal-overlay {
-            background-color: rgba(10, 25, 47, 0.7);
-            backdrop-filter: blur(4px);
-        }
-
-        /* Predictive row styling base */
-        .pred-success { background-color: rgba(25, 135, 84, 0.15) !important; border-left: 4px solid #198754; }
-        .pred-fail { background-color: rgba(220, 53, 69, 0.1) !important; border-left: 4px solid #dc3545; }
     </style>
 </head>
-<body class="text-slate-800 h-screen overflow-hidden flex flex-col">
+<body class="text-gray-800 h-screen flex flex-col">
 
-<!-- Auth Container -->
-<div id="auth-view" class="fixed inset-0 z-50 flex items-center justify-center bg-navy-900 hidden">
-    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-500 to-dcblue"></div>
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-navy-900 mb-2"><i class="fa-solid fa-compass text-teal-500 mr-2"></i>DataCompas360</h1>
-            <p class="text-gray-500 text-sm">Sign in to access advanced football analytics</p>
-        </div>
-        
-        <div id="login-form">
-            <input type="email" id="auth-email" placeholder="Email Address" class="w-full mb-4 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-dcblue">
-            <input type="password" id="auth-password" placeholder="Password" class="w-full mb-2 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-dcblue">
-            
-            <div class="flex justify-between items-center mb-6 text-sm">
-                <a href="#" id="forgot-password-btn" class="text-dcblue hover:underline">Forgot Password?</a>
-            </div>
-            
-            <button id="btn-login" class="w-full bg-dcblue hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
-                Log In
-            </button>
-            <div class="text-center mt-6 text-sm">
-                Don't have an account? <a href="#" id="toggle-signup" class="text-teal-600 font-bold hover:underline">Sign Up</a>
-            </div>
-        </div>
-
-        <div id="signup-form" class="hidden">
-            <input type="text" id="signup-name" placeholder="Full Name" class="w-full mb-4 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-dcblue">
-            <input type="email" id="signup-email" placeholder="Email Address" class="w-full mb-4 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-dcblue">
-            <input type="password" id="signup-password" placeholder="Create Password" class="w-full mb-6 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-dcblue">
-            
-            <button id="btn-register" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
-                Create Account
-            </button>
-            <div class="text-center mt-6 text-sm">
-                Already have an account? <a href="#" id="toggle-login" class="text-dcblue font-bold hover:underline">Log In</a>
-            </div>
-        </div>
-        
-        <div id="auth-error" class="mt-4 text-red-500 text-sm text-center hidden"></div>
-        <div id="auth-success" class="mt-4 text-dcgreen text-sm text-center hidden"></div>
+    <!-- Loader Overlay -->
+    <div id="loader" class="fixed inset-0 bg-black/40 hidden z-50 flex-col justify-center items-center backdrop-blur-sm">
+        <div class="animate-spin rounded-full h-14 w-14 border-4 border-white border-t-customTeal mb-4"></div>
+        <span class="text-white font-semibold tracking-wide">Loading DataCompas360...</span>
     </div>
-</div>
 
-<!-- Match Detail Modal -->
-<div id="match-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="bg-navy-900 text-white px-6 py-4 flex justify-between items-center">
-            <h2 class="text-xl font-bold" id="modal-match-title">Match Details</h2>
-            <button id="close-modal" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
-        </div>
-        <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="modal-content">
-            <!-- Dynamically populated grid -->
-        </div>
-    </div>
-</div>
+    <!-- Error Banner -->
+    <div id="error-message" class="hidden bg-red-600 text-white text-center py-2 px-4 font-semibold text-sm shadow-md z-40"></div>
 
-<!-- Notification Toast -->
-<div id="toast" class="fixed bottom-4 right-4 z-50 transform transition-transform duration-300 translate-y-20 opacity-0 bg-white shadow-lg rounded-lg px-4 py-3 flex items-center border-l-4 border-teal-500">
-    <i class="fa-solid fa-circle-info text-teal-500 mr-3"></i>
-    <span id="toast-msg" class="text-sm font-medium">Notification</span>
-</div>
-
-<!-- Main App Layout -->
-<div id="app-layout" class="flex h-screen w-full hidden">
-    
-    <!-- Sidebar -->
-    <aside class="w-64 bg-navy-900 text-white flex flex-col flex-shrink-0 transition-all duration-300" id="sidebar">
-        <div class="h-16 flex items-center px-6 bg-navy-800 border-b border-gray-700">
-            <i class="fa-solid fa-compass text-teal-500 text-2xl mr-3"></i>
-            <span class="text-xl font-bold tracking-wide">DataCompas<span class="text-teal-500">360</span></span>
+    <!-- Header -->
+    <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center z-10">
+        <div class="flex items-center space-x-3">
+            <div class="bg-customNavy text-white p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">DataCompas<span class="text-customTeal">360</span></h1>
         </div>
         
-        <div class="p-4 border-b border-gray-700">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-navy-900 font-bold text-lg" id="user-avatar">U</div>
-                <div class="overflow-hidden">
-                    <p class="text-sm font-semibold truncate" id="user-display-name">Loading...</p>
-                    <p class="text-xs text-teal-400 capitalize" id="user-display-role">ordinary</p>
-                </div>
-            </div>
-        </div>
-
-        <nav class="flex-1 overflow-y-auto py-4" id="main-nav">
-            <!-- Navigation links generated by JS based on role -->
+        <!-- Navigation Tabs -->
+        <nav class="flex space-x-1 border-b border-gray-200">
+            <button onclick="switchTab('all-matches')" id="tab-all-matches" class="tab-btn active px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-customNavy transition-colors outline-none">All Matches</button>
+            <button onclick="switchTab('best-matches')" id="tab-best-matches" class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-customNavy transition-colors outline-none flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                Best Matches
+            </button>
+            <button onclick="switchTab('analysis')" id="tab-analysis" class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-customNavy transition-colors outline-none">Analysis</button>
+            <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-customNavy transition-colors outline-none flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Settings
+            </button>
         </nav>
-        
-        <div class="p-4 border-t border-gray-700">
-            <button id="btn-logout" class="flex items-center w-full px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-500 hover:bg-opacity-20 rounded-lg transition-colors">
-                <i class="fa-solid fa-right-from-bracket w-6"></i> Logout
-            </button>
-        </div>
-    </aside>
+    </header>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50 relative">
-        <!-- Header -->
-        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10">
-            <div class="flex items-center">
-                <button id="mobile-menu-btn" class="md:hidden text-gray-500 hover:text-navy-900 mr-4">
-                    <i class="fa-solid fa-bars text-xl"></i>
-                </button>
-                <h2 id="current-tab-title" class="text-xl font-semibold text-navy-900">Dashboard</h2>
-            </div>
-            <div class="flex items-center space-x-4">
-                <div class="text-sm text-gray-500 hidden sm:block">
-                    <i class="fa-regular fa-calendar mr-1"></i> <span id="current-date-display"></span>
+    <main class="flex-1 overflow-hidden p-6 max-w-screen-2xl mx-auto w-full flex flex-col gap-6">
+
+        <!-- ==================== ALL MATCHES TAB ==================== -->
+        <div id="content-all-matches" class="flex flex-col h-full gap-4">
+            <!-- Filter Bar -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 shrink-0">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Date</label>
+                    <input type="date" id="filter-date" class="border rounded px-3 py-1.5 text-sm focus:outline-customTeal w-36" onchange="applyAllMatchesFilters()">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Month</label>
+                    <select id="filter-month" class="border rounded px-3 py-1.5 text-sm focus:outline-customTeal w-28" onchange="applyAllMatchesFilters()">
+                        <option value="">All</option>
+                        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">League</label>
+                    <select id="filter-league" class="border rounded px-3 py-1.5 text-sm focus:outline-customTeal w-40" onchange="applyAllMatchesFilters()">
+                        <option value="">All Leagues</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Prediction</label>
+                    <select id="filter-prediction" class="border rounded px-3 py-1.5 text-sm focus:outline-customTeal w-36" onchange="applyAllMatchesFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Home Form (Min - Max)</label>
+                    <div class="flex gap-2">
+                        <input type="number" step="any" id="filter-home-form-min" class="border rounded px-2 py-1.5 text-sm focus:outline-customTeal w-16" placeholder="Min" onchange="applyAllMatchesFilters()">
+                        <input type="number" step="any" id="filter-home-form-max" class="border rounded px-2 py-1.5 text-sm focus:outline-customTeal w-16" placeholder="Max" onchange="applyAllMatchesFilters()">
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Away Form (Min - Max)</label>
+                    <div class="flex gap-2">
+                        <input type="number" step="any" id="filter-away-form-min" class="border rounded px-2 py-1.5 text-sm focus:outline-customTeal w-16" placeholder="Min" onchange="applyAllMatchesFilters()">
+                        <input type="number" step="any" id="filter-away-form-max" class="border rounded px-2 py-1.5 text-sm focus:outline-customTeal w-16" placeholder="Max" onchange="applyAllMatchesFilters()">
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label class="text-xs font-semibold text-gray-500">Search Team</label>
+                    <input type="text" id="search-team" placeholder="e.g. Arsenal..." class="border rounded px-3 py-1.5 text-sm focus:outline-customTeal w-full" onkeyup="applyAllMatchesFilters()">
+                </div>
+                
+                <div class="flex gap-2 w-full lg:w-auto ml-auto">
+                    <button onclick="openAdvFilters()" class="bg-white border border-customTeal text-customTeal hover:bg-teal-50 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Advanced Filters</button>
+                    <button onclick="openAllModelFilters()" class="bg-white border border-customNavy text-customNavy hover:bg-blue-50 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Model Filters</button>
+                    <button onclick="resetAllMatchesFilters()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Reset</button>
                 </div>
             </div>
-        </header>
 
-        <!-- Dynamic View Container -->
-        <div class="flex-1 overflow-auto p-4 md:p-6" id="view-container">
+            <div class="flex gap-4 items-center shrink-0">
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center"><span class="text-gray-500 text-xs block">Model 1</span><span id="summary-all-m1" class="text-customNavy">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center"><span class="text-gray-500 text-xs block">Model 2</span><span id="summary-all-m2" class="text-customTeal">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center"><span class="text-gray-500 text-xs block">Model 3</span><span id="summary-all-m3" class="text-amber-600">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center"><span class="text-gray-500 text-xs block">Model 4</span><span id="summary-all-m4" class="text-purple-700">0/0 (0.0%)</span></div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col table-container">
+                <div class="overflow-y-auto flex-1 relative">
+                    <table class="w-full text-left border-collapse min-w-[900px]">
+                        <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b w-1/6">Home Team</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b w-1/6">Away Team</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 1</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 2</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 3</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 4</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b text-center w-24">Result</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b text-center w-20">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body-all" class="text-sm">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             
-            <div id="tab-dashboard" class="tab-content h-full">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-dcblue">
-                        <h3 class="text-gray-500 text-sm font-medium mb-1">Total Matches Analyzed</h3>
-                        <div class="text-3xl font-bold text-navy-900" id="dash-total-matches">-</div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-teal-500">
-                        <h3 class="text-gray-500 text-sm font-medium mb-1">Best Matches Found</h3>
-                        <div class="text-3xl font-bold text-navy-900" id="dash-best-matches">-</div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-dcgreen">
-                        <h3 class="text-gray-500 text-sm font-medium mb-1">System Accuracy</h3>
-                        <div class="text-3xl font-bold text-navy-900">74.2%</div>
-                    </div>
+            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
+                <span id="page-info-all" class="text-sm text-gray-600 font-medium">Showing 0-0 of 0</span>
+                <div class="flex space-x-2">
+                    <button onclick="prevPage('all')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded text-sm font-semibold transition disabled:opacity-50">Prev</button>
+                    <button onclick="nextPage('all')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded text-sm font-semibold transition disabled:opacity-50">Next</button>
                 </div>
-                <div class="bg-white rounded-xl shadow-sm p-6 flex flex-col items-center justify-center text-center h-64">
-                    <i class="fa-solid fa-chart-line text-6xl text-gray-200 mb-4"></i>
-                    <h2 class="text-xl font-semibold text-gray-700">Welcome to DataCompas360</h2>
-                    <p class="text-gray-500 mt-2 max-w-md">Navigate using the sidebar to view detailed match analytics, apply complex filters, and discover optimal betting opportunities.</p>
+            </div>
+        </div>
+
+        <!-- ==================== BEST MATCHES TAB ==================== -->
+        <div id="content-best-matches" class="hidden flex-col h-full gap-4">
+            <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 flex flex-wrap items-end gap-4 shrink-0">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-green-700">Date</label>
+                    <input type="date" id="bm-filter-date" class="border-green-300 rounded px-3 py-1.5 text-sm focus:outline-customGreen w-36 bg-white" onchange="applyBestMatchesFilters()">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-green-700">Month</label>
+                    <select id="bm-filter-month" class="border-green-300 rounded px-3 py-1.5 text-sm focus:outline-customGreen w-28 bg-white" onchange="applyBestMatchesFilters()">
+                        <option value="">All</option>
+                        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-green-700">League</label>
+                    <select id="bm-filter-league" class="border-green-300 rounded px-3 py-1.5 text-sm focus:outline-customGreen w-40 bg-white" onchange="applyBestMatchesFilters()">
+                        <option value="">All Leagues</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-green-700">Prediction</label>
+                    <select id="bm-filter-prediction" class="border-green-300 rounded px-3 py-1.5 text-sm focus:outline-customGreen w-36 bg-white" onchange="applyBestMatchesFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+                    <label class="text-xs font-semibold text-green-700">Search Team</label>
+                    <input type="text" id="bm-search-team" placeholder="e.g. Real Madrid..." class="border-green-300 rounded px-3 py-1.5 text-sm focus:outline-customGreen w-full bg-white" onkeyup="applyBestMatchesFilters()">
+                </div>
+                
+                <div class="flex gap-2 w-full lg:w-auto ml-auto">
+                    <button onclick="openBmAdvFilters()" class="bg-white border border-customGreen text-customGreen hover:bg-green-100 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Advanced Filters</button>
+                    <button onclick="openBmModelFilters()" class="bg-white border border-green-800 text-green-800 hover:bg-green-100 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Model Filters</button>
+                    <button onclick="resetBestMatchesFilters()" class="bg-white hover:bg-green-100 text-green-700 border border-green-300 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Reset</button>
                 </div>
             </div>
 
-            <div id="tab-matches" class="tab-content h-full flex flex-col">
-                <!-- Filters Section -->
-                <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex-shrink-0">
-                    <div class="flex flex-wrap gap-3 items-end mb-3">
-                        <div class="w-full sm:w-auto flex-1 min-w-[200px]">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Search Team or League</label>
-                            <div class="relative">
-                                <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400"></i>
-                                <input type="text" id="filter-search" class="w-full pl-9 pr-3 py-2 text-sm rounded border border-gray-300 focus:ring-dcblue focus:border-dcblue" placeholder="e.g., Arsenal, Premier League...">
-                            </div>
-                        </div>
-                        <div class="w-1/2 sm:w-auto">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Date</label>
-                            <input type="text" id="filter-date" placeholder="MM/DD/YYYY" class="w-full px-3 py-2 text-sm rounded border border-gray-300">
-                        </div>
-                        <div class="w-1/2 sm:w-auto">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Month</label>
-                            <input type="text" id="filter-month" placeholder="MM/YYYY" class="w-full px-3 py-2 text-sm rounded border border-gray-300">
-                        </div>
-                        <div class="w-1/2 sm:w-auto">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">H. Form Rate >=</label>
-                            <input type="number" step="0.1" id="filter-h-form" class="w-24 px-3 py-2 text-sm rounded border border-gray-300">
-                        </div>
-                        <div class="w-1/2 sm:w-auto">
-                            <label class="block text-xs font-medium text-gray-700 mb-1">A. Form Rate >=</label>
-                            <input type="number" step="0.1" id="filter-a-form" class="w-24 px-3 py-2 text-sm rounded border border-gray-300">
-                        </div>
-                        <button id="btn-toggle-advanced" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded hover:bg-gray-200 transition">
-                            More Filters <i class="fa-solid fa-caret-down ml-1"></i>
-                        </button>
-                        <button id="btn-apply-filters" class="px-4 py-2 bg-dcblue text-white text-sm font-medium rounded hover:bg-blue-700 transition">
-                            Apply
-                        </button>
-                        <button id="btn-reset-filters" class="px-4 py-2 bg-gray-200 text-gray-600 text-sm font-medium rounded hover:bg-gray-300 transition">
-                            Reset
-                        </button>
-                    </div>
+            <div class="flex gap-4 items-center shrink-0">
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center border-t-4 border-t-customNavy"><span class="text-gray-500 text-xs block">Model 1</span><span id="summary-best-m1" class="text-customNavy">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center border-t-4 border-t-customTeal"><span class="text-gray-500 text-xs block">Model 2</span><span id="summary-best-m2" class="text-customTeal">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center border-t-4 border-t-amber-600"><span class="text-gray-500 text-xs block">Model 3</span><span id="summary-best-m3" class="text-amber-600">0/0 (0.0%)</span></div>
+                <div class="bg-white px-4 py-2 rounded shadow-sm border border-gray-200 text-sm font-bold flex-1 text-center border-t-4 border-t-purple-700"><span class="text-gray-500 text-xs block">Model 4</span><span id="summary-best-m4" class="text-purple-700">0/0 (0.0%)</span></div>
+            </div>
 
-                    <!-- Advanced Filters (Hidden by default) -->
-                    <div id="advanced-filters" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-3 border-t border-gray-200 mt-2">
-                        <!-- Populated by JS -->
-                    </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col table-container">
+                <div class="overflow-y-auto flex-1 relative">
+                    <table class="w-full text-left border-collapse min-w-[900px]">
+                        <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b w-1/6">Home Team</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b w-1/6">Away Team</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 1</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 2</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 3</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-l border-gray-200 text-center w-32">Model 4</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b text-center w-24">Result</th>
+                                <th class="py-3 px-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-b text-center w-20">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body-best" class="text-sm">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
                 </div>
+            </div>
+            
+            <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
+                <span id="page-info-best" class="text-sm text-gray-600 font-medium">Showing 0-0 of 0</span>
+                <div class="flex space-x-2">
+                    <button onclick="prevPage('best')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded text-sm font-semibold transition disabled:opacity-50">Prev</button>
+                    <button onclick="nextPage('best')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-1.5 rounded text-sm font-semibold transition disabled:opacity-50">Next</button>
+                </div>
+            </div>
+        </div>
 
-                <!-- Table Section -->
-                <div class="bg-white rounded-xl shadow-sm flex-1 flex flex-col overflow-hidden">
-                    <div class="overflow-x-auto flex-1 relative">
-                        <table class="w-full text-sm text-left whitespace-nowrap">
-                            <thead class="text-xs text-white bg-navy-800 sticky top-0 z-10 uppercase">
+        <!-- ==================== ANALYSIS TAB ==================== -->
+        <div id="content-analysis" class="hidden flex-col h-full gap-4 overflow-y-auto pr-2">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-end gap-4 shrink-0">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Date</label>
+                    <input type="date" id="an-filter-date" class="border rounded px-3 py-1.5 text-sm focus:outline-customNavy w-36" onchange="applyAnalysisFilters()">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Month</label>
+                    <select id="an-filter-month" class="border rounded px-3 py-1.5 text-sm focus:outline-customNavy w-28" onchange="applyAnalysisFilters()">
+                        <option value="">All</option>
+                        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                        <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+                        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">League</label>
+                    <select id="an-filter-league" class="border rounded px-3 py-1.5 text-sm focus:outline-customNavy w-40" onchange="applyAnalysisFilters()">
+                        <option value="">All Leagues</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs font-semibold text-gray-500">Prediction (Any)</label>
+                    <select id="an-filter-prediction" class="border rounded px-3 py-1.5 text-sm focus:outline-customNavy w-36" onchange="applyAnalysisFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1 flex-1 min-w-[150px]">
+                    <label class="text-xs font-semibold text-gray-500">Search Team</label>
+                    <input type="text" id="an-search-team" placeholder="Search..." class="border rounded px-3 py-1.5 text-sm focus:outline-customNavy w-full" onkeyup="applyAnalysisFilters()">
+                </div>
+                <div class="flex items-center gap-2 mb-1.5">
+                    <input type="checkbox" id="an-apply-thresholds" class="h-4 w-4 text-customNavy rounded border-gray-300 focus:ring-customNavy" onchange="applyAnalysisFilters()">
+                    <label for="an-apply-thresholds" class="text-sm font-semibold text-gray-700 cursor-pointer">Apply Settings Thresholds</label>
+                </div>
+                
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="openAnAdvFilters()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-semibold transition-colors border border-gray-300">Adv. Filters</button>
+                    <button onclick="resetAnalysisFilters()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm font-semibold transition-colors">Reset</button>
+                </div>
+            </div>
+
+            <!-- Analysis Grids -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <!-- Overall Performance -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-indigo-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                        <h3 class="font-bold text-customNavy">Overall Performance Ranking</h3>
+                        <span class="text-xs font-semibold bg-indigo-100 text-indigo-800 px-2 py-1 rounded">All Outcomes</span>
+                    </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[400px]">
+                            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
                                 <tr>
-                                    <th class="px-4 py-3 min-w-[120px]">Home Team</th>
-                                    <th class="px-4 py-3 min-w-[120px]">Away Team</th>
-                                    <th class="px-3 py-3 border-l border-gray-600 bg-navy-900 text-center">Model 1<br><span class="text-[10px] text-teal-400 font-normal">Pred &bull; Prob</span></th>
-                                    <th class="px-3 py-3 border-l border-gray-600 text-center">Model 2<br><span class="text-[10px] text-teal-400 font-normal">Pred &bull; Prob</span></th>
-                                    <th class="px-3 py-3 border-l border-gray-600 bg-navy-900 text-center">Model 3<br><span class="text-[10px] text-teal-400 font-normal">Pred &bull; Prob</span></th>
-                                    <th class="px-3 py-3 border-l border-gray-600 text-center">Model 4<br><span class="text-[10px] text-teal-400 font-normal">Pred &bull; Prob</span></th>
-                                    <th class="px-3 py-3 border-l border-gray-600 bg-navy-900 text-center">Model 5<br><span class="text-[10px] text-teal-400 font-normal">Pred &bull; Prob</span></th>
-                                    <th class="px-4 py-3 border-l border-gray-600 text-center">Result</th>
-                                    <th class="px-4 py-3 text-center">Action</th>
+                                    <th class="py-2 px-2">Rank</th>
+                                    <th class="py-2 px-2">Model</th>
+                                    <th class="py-2 px-2 text-center">Hits/Total</th>
+                                    <th class="py-2 px-2 text-center">Win Rate</th>
+                                    <th class="py-2 px-2 text-center">Score</th>
                                 </tr>
                             </thead>
-                            <tbody id="matches-table-body" class="divide-y divide-gray-200">
-                                <!-- Rows generated by JS -->
-                            </tbody>
+                            <tbody id="analysis-overall-tbody" class="text-sm"></tbody>
                         </table>
-                        <div id="table-loading" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center hidden">
-                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-dcblue"></div>
-                        </div>
-                        <div id="table-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                            <i class="fa-solid fa-folder-open text-4xl mb-2 text-gray-300"></i>
-                            <p>No matches found matching criteria.</p>
-                        </div>
-                    </div>
-                    <!-- Pagination -->
-                    <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-                        <span class="text-sm text-gray-700" id="pagination-info">Showing 0 to 0 of 0 entries</span>
-                        <div class="flex space-x-2">
-                            <button id="btn-prev-page" class="px-3 py-1 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50 disabled:opacity-50">Back</button>
-                            <button id="btn-next-page" class="px-3 py-1 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50 disabled:opacity-50">Next</button>
-                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="tab-settings" class="tab-content h-full overflow-y-auto">
-                <div class="max-w-4xl mx-auto space-y-6">
-                    <div class="bg-white rounded-xl shadow-sm p-6">
-                        <h2 class="text-lg font-bold text-navy-900 border-b pb-2 mb-4"><i class="fa-solid fa-sliders text-teal-500 mr-2"></i>Best Matches Thresholds</h2>
-                        <p class="text-sm text-gray-500 mb-4">Set the baseline criteria for a match to automatically appear in the 'Best Matches' tab.</p>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Min Confidence %</label>
-                                <input type="number" id="set-min-conf" class="mt-1 w-full p-2 border rounded focus:ring-teal-500 focus:border-teal-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Min Home Power</label>
-                                <input type="number" id="set-min-power" class="mt-1 w-full p-2 border rounded focus:ring-teal-500 focus:border-teal-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Min Form Difference</label>
-                                <input type="number" id="set-min-form-diff" class="mt-1 w-full p-2 border rounded focus:ring-teal-500 focus:border-teal-500">
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end">
-                            <button id="btn-save-settings" class="px-4 py-2 bg-teal-500 text-white rounded shadow hover:bg-teal-600 transition">Save Thresholds</button>
-                        </div>
+                <!-- Home Wins (1) -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-green-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                        <h3 class="font-bold text-green-800">Home Wins (1) Ranking</h3>
+                        <span class="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded">Outcome = 1</span>
                     </div>
-
-                    <div class="bg-white rounded-xl shadow-sm p-6">
-                        <h2 class="text-lg font-bold text-navy-900 border-b pb-2 mb-4"><i class="fa-solid fa-users-gear text-dcblue mr-2"></i>User Management</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3">Name</th>
-                                        <th class="px-4 py-3">Email</th>
-                                        <th class="px-4 py-3">Role</th>
-                                        <th class="px-4 py-3">Status</th>
-                                        <th class="px-4 py-3 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="users-table-body" class="divide-y">
-                                    <!-- Users populated via JS -->
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[400px]">
+                            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2 px-2">Rank</th>
+                                    <th class="py-2 px-2">Model</th>
+                                    <th class="py-2 px-2 text-center">Hits/Total</th>
+                                    <th class="py-2 px-2 text-center">Win Rate</th>
+                                    <th class="py-2 px-2 text-center">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analysis-home-tbody" class="text-sm"></tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
+                
+                <!-- Draws (X) -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-amber-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                        <h3 class="font-bold text-amber-800">Draws (X) Ranking</h3>
+                        <span class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded">Outcome = X</span>
+                    </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[400px]">
+                            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2 px-2">Rank</th>
+                                    <th class="py-2 px-2">Model</th>
+                                    <th class="py-2 px-2 text-center">Hits/Total</th>
+                                    <th class="py-2 px-2 text-center">Win Rate</th>
+                                    <th class="py-2 px-2 text-center">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analysis-draw-tbody" class="text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
 
-            <!-- Placeholders for other tabs -->
-            <div id="tab-home" class="tab-content h-full flex items-center justify-center">
-                <div class="text-center">
-                    <i class="fa-solid fa-house text-6xl text-gray-300 mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-700">Home Portal</h2>
-                    <p class="text-gray-500 mt-2">Latest news and updates will appear here.</p>
+                <!-- Away Wins (2) -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-blue-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                        <h3 class="font-bold text-blue-800">Away Wins (2) Ranking</h3>
+                        <span class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">Outcome = 2</span>
+                    </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="w-full text-left border-collapse min-w-[400px]">
+                            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-2 px-2">Rank</th>
+                                    <th class="py-2 px-2">Model</th>
+                                    <th class="py-2 px-2 text-center">Hits/Total</th>
+                                    <th class="py-2 px-2 text-center">Win Rate</th>
+                                    <th class="py-2 px-2 text-center">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analysis-away-tbody" class="text-sm"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            
-            <div id="tab-reports" class="tab-content h-full flex items-center justify-center">
-                <div class="text-center">
-                    <i class="fa-solid fa-file-pdf text-6xl text-gray-300 mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-700">Reports Module</h2>
-                    <p class="text-gray-500 mt-2 italic">To be built in future.</p>
-                </div>
-            </div>
-
-            <div id="tab-contribution" class="tab-content h-full flex items-center justify-center">
-                <div class="text-center">
-                    <i class="fa-solid fa-hand-holding-dollar text-6xl text-gray-300 mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-700">Contribution Module</h2>
-                    <p class="text-gray-500 mt-2 italic">To be built in future.</p>
-                </div>
-            </div>
-
         </div>
-    </main>
-</div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, collection, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Initialize core Firebase for Auth & Settings (Collaboration Env Mandate)
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'datacompas360-default';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-        // Fallback for local testing if env vars missing
-        apiKey: "demo-key", projectId: "demo-project", databaseURL: "https://datacompas360-default-rtdb.firebaseio.com"
-    };
-    
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    // Global Application State
-    const AppState = {
-        user: null,
-        profile: { role: 'ordinary', name: '' },
-        allUsers: [],
-        matches: [],
-        filteredMatches: [],
-        currentPage: 1,
-        itemsPerPage: 30,
-        activeTab: 'dashboard',
-        currentMode: 'all', // 'all' or 'best'
-        settings: {
-            thresholds: { confidenceMin: 70, powerMin: 50, formDiffMin: 5 }
-        },
-        advancedFiltersVisible: false
-    };
-
-    // DOM Elements Cache
-    const DOM = {
-        authView: document.getElementById('auth-view'),
-        appLayout: document.getElementById('app-layout'),
-        nav: document.getElementById('main-nav'),
-        views: document.querySelectorAll('.tab-content'),
-        tabTitle: document.getElementById('current-tab-title'),
-        tableBody: document.getElementById('matches-table-body'),
-        paginationInfo: document.getElementById('pagination-info'),
-        toast: document.getElementById('toast'),
-        toastMsg: document.getElementById('toast-msg'),
-        modal: document.getElementById('match-modal'),
-        modalContent: document.getElementById('modal-content'),
-        modalTitle: document.getElementById('modal-match-title')
-    };
-
-    // Navigation Structure & Role Access
-    const NAV_ITEMS = [
-        { id: 'home', label: 'Home', icon: 'fa-house', roles: ['ordinary', 'supervisor', 'admin'] },
-        { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', roles: ['supervisor', 'admin'] },
-        { id: 'allMatches', label: 'All Matches', icon: 'fa-futbol', roles: ['ordinary', 'supervisor', 'admin'] },
-        { id: 'bestMatches', label: 'Best Matches', icon: 'fa-star', roles: ['ordinary', 'supervisor', 'admin'] },
-        { id: 'reports', label: 'Reports', icon: 'fa-file-lines', roles: ['supervisor', 'admin'] },
-        { id: 'settings', label: 'Users & Settings', icon: 'fa-gear', roles: ['admin'] },
-        { id: 'contribution', label: 'Contribution', icon: 'fa-handshake', roles: ['admin'] }
-    ];
-
-    // Since external RTDB endpoints often have CORS issues or strict security rules, 
-    // we generate robust mock data that exactly matches the requested structure to guarantee app functionality.
-    function generateMockMatches(count = 150) {
-        const leagues = ["Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1", "Eredivisie"];
-        const teams = ["Arsenal", "Chelsea", "Man City", "Liverpool", "Real Madrid", "Barcelona", "Bayern", "Dortmund", "Juventus", "Milan", "PSG", "Lyon"];
-        const outcomes = ["Home", "Draw", "Away"];
-        const results = ["1-0", "2-1", "0-0", "1-1", "0-2", "1-2", "3-0", "0-3", "2-2", "3-2"];
-        
-        const data = [];
-        const today = new Date();
-        
-        for(let i=0; i<count; i++) {
-            const isHomeWin = Math.random() > 0.5;
-            const pred = isHomeWin ? "Home" : (Math.random() > 0.7 ? "Draw" : "Away");
-            
-            // Format Date MM/DD/YYYY
-            const d = new Date(today);
-            d.setDate(today.getDate() - Math.floor(Math.random() * 30));
-            const dateStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
-            const monthStr = `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-            
-            let m1prob = Math.floor(Math.random() * 40) + 50; // 50-90
-            let homePower = Math.floor(Math.random() * 50) + 50;
-            let awayPower = Math.floor(Math.random() * 50) + 40;
-
-            data.push({
-                id: `m_${i}`,
-                Date: dateStr,
-                League: leagues[Math.floor(Math.random()*leagues.length)],
-                "Home Team": teams[Math.floor(Math.random()*teams.length)],
-                "Away Team": teams[Math.floor(Math.random()*teams.length)],
-                "Home Form Rate": (Math.random() * 3).toFixed(1),
-                "Away Form Rate": (Math.random() * 3).toFixed(1),
-                Month: monthStr,
-                
-                // Model 1
-                Prediction: pred,
-                "Confidence %": m1prob,
-                
-                // Model 2
-                "Model Prediction": isHomeWin ? "Home" : "Away",
-                "Model Prob %": m1prob - 5,
-                
-                // Model 3
-                "Match Prediction Tip": pred,
-                "Prediction Likely": m1prob + 2,
-                
-                // Model 4
-                "Model 4 Prediction": pred, // mapped conceptually
-                "Model 4 Prob": m1prob - 2,
-                
-                // Model 5
-                "Match outcome Prediction": isHomeWin ? "1" : "2",
-                "Match outcome chance": m1prob + 5,
-                
-                "Match Result": results[Math.floor(Math.random()*results.length)],
-                
-                // Stats
-                "Home Odds": (1.5 + Math.random()*3).toFixed(2),
-                "Draw Odds": (2.8 + Math.random()*2).toFixed(2),
-                "Away Odds": (2.0 + Math.random()*4).toFixed(2),
-                "Home Form": "WWD", "Away Form": "LDW",
-                "Correct Score": "2-1",
-                "H2H Home Wins": Math.floor(Math.random()*5),
-                "H2H Draw": Math.floor(Math.random()*3),
-                "H2H Away Wins": Math.floor(Math.random()*5),
-                "Home Scored Avg": (1 + Math.random()*2).toFixed(1),
-                "Home Conceded Avg": (0.5 + Math.random()*1.5).toFixed(1),
-                "Away Scored Avg": (0.8 + Math.random()*2).toFixed(1),
-                "Away Conceded Avg": (1 + Math.random()*2).toFixed(1),
-                "Home Power": homePower,
-                "Away Power": awayPower,
-                "Home Position": Math.floor(Math.random()*20)+1,
-                "Away Position": Math.floor(Math.random()*20)+1,
-                "Form Difference": Math.floor(Math.random()*10) - 5,
-                "H2H Difference": Math.floor(Math.random()*6) - 3,
-                "Position Difference": Math.floor(Math.random()*15) - 7,
-                "Scored Difference": (Math.random()*2 - 1).toFixed(1),
-                "Conceded Difference": (Math.random()*2 - 1).toFixed(1),
-                "Power Difference": homePower - awayPower,
-                "Level Of Confidence": "High",
-                "Match outcome category": "Home Win",
-                "Home Form Wins": 3, "Away Form Wins": 1,
-                "Form Wins Difference": 2,
-                "Match URL": "#"
-            });
-        }
-        return data;
-    }
-
-    function showToast(msg, isError = false) {
-        DOM.toastMsg.textContent = msg;
-        DOM.toast.classList.remove('border-teal-500', 'border-red-500');
-        DOM.toast.classList.add(isError ? 'border-red-500' : 'border-teal-500');
-        
-        DOM.toast.style.opacity = '1';
-        DOM.toast.style.transform = 'translateY(0)';
-        setTimeout(() => {
-            DOM.toast.style.opacity = '0';
-            DOM.toast.style.transform = 'translateY(20px)';
-        }, 3000);
-    }
-
-    // Helper to format date MM/DD/YYYY
-    function getTodayFormatted() {
-        const d = new Date();
-        return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
-    }
-    function getMonthFormatted() {
-        const d = new Date();
-        return `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-    }
-
-    // Determine actual winner from "2-1" format
-    function getActualOutcome(resultStr) {
-        if(!resultStr || !resultStr.includes('-')) return null;
-        const parts = resultStr.split('-');
-        const h = parseInt(parts[0]);
-        const a = parseInt(parts[1]);
-        if(isNaN(h) || isNaN(a)) return null;
-        if(h > a) return 'Home';
-        if(h < a) return 'Away';
-        return 'Draw';
-    }
-
-    // Helper for table cell color logic
-    function getPredictionClass(prediction, resultStr) {
-        if (!resultStr || resultStr === '-' || resultStr.trim() === '') return '';
-        const outcome = getActualOutcome(resultStr);
-        if(!outcome) return '';
-        
-        // Standardize prediction string
-        const p = prediction.toString().toLowerCase();
-        let normalizedPred = p.includes('home') || p === '1' ? 'Home' : 
-                             (p.includes('away') || p === '2' ? 'Away' : 'Draw');
-                             
-        if (normalizedPred === outcome) return 'pred-success';
-        return 'pred-fail';
-    }
-
-    async function fetchMatches() {
-        // Attempt to fetch from external RTDB URL provided
-        try {
-            const url = "https://datacompas360-default-rtdb.firebaseio.com/matches.json";
-            const response = await fetch(url);
-            if(response.ok) {
-                const data = await response.json();
-                if(data) {
-                    // Convert object map to array if necessary
-                    AppState.matches = Array.isArray(data) ? data : Object.values(data);
-                    console.log("Loaded data from RTDB.");
-                } else {
-                    throw new Error("No data found");
-                }
-            } else {
-                throw new Error("CORS or Auth restricted");
-            }
-        } catch (e) {
-            console.warn("Could not load from provided RTDB, falling back to robust mock dataset.", e);
-            AppState.matches = generateMockMatches(120);
-        }
-        applyFilters(); // Initial render
-        updateDashboardStats();
-    }
-
-    async function fetchUserSettings() {
-        if(!AppState.user || AppState.profile.role !== 'admin') return;
-        try {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings_global');
-            const docSnap = await getDoc(docRef);
-            if(docSnap.exists()) {
-                AppState.settings = docSnap.data();
-                document.getElementById('set-min-conf').value = AppState.settings.thresholds.confidenceMin || 70;
-                document.getElementById('set-min-power').value = AppState.settings.thresholds.powerMin || 50;
-                document.getElementById('set-min-form-diff').value = AppState.settings.thresholds.formDiffMin || 5;
-            }
-        } catch(e) { console.error("Error loading settings", e); }
-    }
-
-    async function setupUserProfile(user, fallbackName, fallbackRole) {
-        AppState.user = user;
-        const email = user.email || `user_${user.uid.substring(0,5)}@demo.com`;
-        let name = fallbackName || email.split('@')[0];
-        let role = fallbackRole || 'ordinary';
-
-        try {
-            const profileRef = doc(db, 'artifacts', appId, 'public', 'data', `user_${user.uid}`);
-            const profileSnap = await getDoc(profileRef);
-            if (profileSnap.exists()) {
-                AppState.profile = profileSnap.data();
-            } else {
-                const newProfile = { name: name, email: email, role: role, status: 'active', uid: user.uid };
-                await setDoc(profileRef, newProfile);
-                AppState.profile = newProfile;
-            }
-        } catch(e) {
-            console.error("Firestore Error, using local profile for testing:", e);
-            AppState.profile = { name: name, email: email, role: role, uid: user.uid };
-        }
-
-        document.getElementById('user-display-name').textContent = AppState.profile.name;
-        document.getElementById('user-display-role').textContent = AppState.profile.role;
-        document.getElementById('user-avatar').textContent = AppState.profile.name.charAt(0).toUpperCase();
-
-        DOM.authView.classList.add('hidden');
-        DOM.appLayout.classList.remove('hidden');
-        
-        buildNavigation();
-        fetchMatches();
-        
-        if(AppState.profile.role === 'admin' || AppState.profile.role === 'supervisor') {
-            fetchUserSettings();
-            fetchUsersList();
-        }
-
-        switchTab('dashboard');
-    }
-
-    function initAuthListeners() {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // Ignore if we already forced local login
-                if (!AppState.user) setupUserProfile(user, null, 'admin'); 
-            } else {
-                AppState.user = null;
-                DOM.authView.classList.remove('hidden');
-                DOM.appLayout.classList.add('hidden');
-            }
-        });
-
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            signOut(auth).catch(() => {});
-            // Force local logout if firebase fails
-            AppState.user = null;
-            DOM.authView.classList.remove('hidden');
-            DOM.appLayout.classList.add('hidden');
-        });
-    }
-
-    async function fetchUsersList() {
-        try {
-            // We use a general query here, but in strict mode we might just rely on known users or mock it if it fails
-            const usersRef = collection(db, 'artifacts', appId, 'public', 'data');
-            const snap = await getDocs(usersRef);
-            AppState.allUsers = [];
-            snap.forEach(doc => { 
-                if(doc.id.startsWith('user_')) {
-                    AppState.allUsers.push(doc.data()); 
-                }
-            });
-            renderUsersTable();
-        } catch(e) {
-            console.error("Fetch users error", e);
-        }
-    }
-
-    function buildNavigation() {
-        const role = AppState.profile.role;
-        DOM.nav.innerHTML = '';
-        
-        NAV_ITEMS.forEach(item => {
-            if(item.roles.includes(role)) {
-                const btn = document.createElement('a');
-                btn.href = `#${item.id}`;
-                btn.className = `flex items-center px-6 py-3 text-sm font-medium transition-colors border-l-4 ${AppState.activeTab === item.id ? 'bg-navy-800 border-teal-500 text-white' : 'border-transparent text-gray-400 hover:bg-navy-800 hover:text-white'}`;
-                btn.innerHTML = `<i class="fa-solid ${item.icon} w-6 text-center mr-2"></i> ${item.label}`;
-                
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    switchTab(item.id);
-                });
-                DOM.nav.appendChild(btn);
-            }
-        });
-    }
-
-    function switchTab(tabId) {
-        AppState.activeTab = tabId;
-        buildNavigation(); // Update active state
-        
-        // Hide all, show target
-        DOM.views.forEach(v => v.classList.remove('active'));
-        
-        const targetView = document.getElementById(`tab-${tabId}`) || document.getElementById('tab-matches');
-        targetView.classList.add('active');
-
-        // Logic routing based on tab
-        const navItem = NAV_ITEMS.find(i => i.id === tabId);
-        DOM.tabTitle.textContent = navItem ? navItem.label : 'App';
-
-        if(tabId === 'allMatches') {
-            AppState.currentMode = 'all';
-            document.getElementById('filter-date').value = getTodayFormatted();
-            document.getElementById('filter-month').value = getMonthFormatted();
-            applyFilters();
-        } else if (tabId === 'bestMatches') {
-            AppState.currentMode = 'best';
-            applyFilters();
-        }
-    }
-
-    function renderAdvancedFilters() {
-        const container = document.getElementById('advanced-filters');
-        const filters = [
-            { id: 'f-h-score', label: 'H. Scored Avg >' },
-            { id: 'f-h-conc', label: 'H. Conceded Avg <' },
-            { id: 'f-a-score', label: 'A. Scored Avg >' },
-            { id: 'f-a-conc', label: 'A. Conceded Avg <' },
-            { id: 'f-h-power', label: 'H. Power >' },
-            { id: 'f-a-power', label: 'A. Power >' },
-            { id: 'f-form-diff', label: 'Form Diff >' },
-            { id: 'f-h2h-diff', label: 'H2H Diff >' }
-        ];
-
-        container.innerHTML = filters.map(f => `
-            <div>
-                <label class="block text-xs font-medium text-gray-700 mb-1">${f.label}</label>
-                <input type="number" id="${f.id}" step="0.1" class="w-full px-2 py-1.5 text-sm rounded border border-gray-300">
-            </div>
-        `).join('');
-    }
-
-    function applyFilters() {
-        const term = document.getElementById('filter-search').value.toLowerCase();
-        const dateFilter = document.getElementById('filter-date').value;
-        const monthFilter = document.getElementById('filter-month').value;
-        const hForm = parseFloat(document.getElementById('filter-h-form').value) || -999;
-        const aForm = parseFloat(document.getElementById('filter-a-form').value) || -999;
-
-        AppState.filteredMatches = AppState.matches.filter(m => {
-            // Basic Text Search
-            if (term && !m["Home Team"].toLowerCase().includes(term) && !m["Away Team"].toLowerCase().includes(term) && !m["League"].toLowerCase().includes(term)) return false;
-            
-            // Basic Filters
-            if (dateFilter && m["Date"] !== dateFilter) return false;
-            if (monthFilter && m["Month"] !== monthFilter) return false;
-            if (parseFloat(m["Home Form Rate"]) < hForm) return false;
-            if (parseFloat(m["Away Form Rate"]) < aForm) return false;
-
-            // 'Best Matches' Mode Logic
-            if (AppState.currentMode === 'best') {
-                const t = AppState.settings.thresholds;
-                if (parseFloat(m["Confidence %"]) < t.confidenceMin) return false;
-                if (parseFloat(m["Home Power"]) < t.powerMin && parseFloat(m["Away Power"]) < t.powerMin) return false;
-                if (Math.abs(parseFloat(m["Form Difference"])) < t.formDiffMin) return false;
-            }
-
-            return true;
-        });
-
-        AppState.currentPage = 1;
-        renderTable();
-    }
-
-    function renderTable() {
-        const start = (AppState.currentPage - 1) * AppState.itemsPerPage;
-        const end = start + AppState.itemsPerPage;
-        const pageData = AppState.filteredMatches.slice(start, end);
-        
-        DOM.tableBody.innerHTML = '';
-        
-        if (pageData.length === 0) {
-            document.getElementById('table-empty').classList.remove('hidden');
-        } else {
-            document.getElementById('table-empty').classList.add('hidden');
-            
-            pageData.forEach(m => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
-                
-                // Color logic for result matching Model 1 Prediction
-                const resClass = getPredictionClass(m["Prediction"], m["Match Result"]);
-                
-                tr.innerHTML = `
-                    <td class="px-4 py-3 font-medium text-gray-900">${m["Home Team"]}</td>
-                    <td class="px-4 py-3 font-medium text-gray-900">${m["Away Team"]}</td>
-                    
-                    <td class="px-3 py-3 border-l border-gray-100 text-center ${resClass}">
-                        <div class="font-bold text-navy-900">${m["Prediction"] || '-'}</div>
-                        <div class="text-xs text-gray-500">${m["Confidence %"] || '-'}%</div>
-                    </td>
-                    <td class="px-3 py-3 border-l border-gray-100 text-center">
-                        <div class="font-medium">${m["Model Prediction"] || '-'}</div>
-                        <div class="text-xs text-gray-500">${m["Model Prob %"] || '-'}%</div>
-                    </td>
-                    <td class="px-3 py-3 border-l border-gray-100 text-center">
-                        <div class="font-medium">${m["Match Prediction Tip"] || '-'}</div>
-                        <div class="text-xs text-gray-500">${m["Prediction Likely"] || '-'}%</div>
-                    </td>
-                    <td class="px-3 py-3 border-l border-gray-100 text-center">
-                        <div class="font-medium">${m["Model 4 Prediction"] || m["Prediction"] || '-'}</div>
-                        <div class="text-xs text-gray-500">${m["Model 4 Prob"] || '-'}%</div>
-                    </td>
-                    <td class="px-3 py-3 border-l border-gray-100 text-center">
-                        <div class="font-medium">${m["Match outcome Prediction"] || '-'}</div>
-                        <div class="text-xs text-gray-500">${m["Match outcome chance"] || '-'}%</div>
-                    </td>
-                    
-                    <td class="px-4 py-3 border-l border-gray-100 text-center font-bold text-lg">${m["Match Result"] || '-'}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button class="view-btn px-3 py-1 bg-teal-50 text-teal-600 rounded border border-teal-200 hover:bg-teal-500 hover:text-white transition-colors text-xs font-semibold" data-id="${m.id}">
-                            View
-                        </button>
-                    </td>
-                `;
-                DOM.tableBody.appendChild(tr);
-            });
-            
-            // Attach view events
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = e.target.getAttribute('data-id');
-                    const match = AppState.filteredMatches.find(x => x.id === id);
-                    if(match) openMatchModal(match);
-                });
-            });
-        }
-        
-        updatePaginationInfo();
-    }
-
-    function updatePaginationInfo() {
-        const total = AppState.filteredMatches.length;
-        const start = total === 0 ? 0 : (AppState.currentPage - 1) * AppState.itemsPerPage + 1;
-        const end = Math.min(AppState.currentPage * AppState.itemsPerPage, total);
-        
-        DOM.paginationInfo.textContent = `Showing ${start} to ${end} of ${total} entries`;
-        
-        document.getElementById('btn-prev-page').disabled = AppState.currentPage === 1;
-        document.getElementById('btn-next-page').disabled = end >= total;
-    }
-
-    function openMatchModal(m) {
-        DOM.modalTitle.textContent = `${m["Home Team"]} vs ${m["Away Team"]} - ${m.League}`;
-        
-        // Fields requested by user side-by-side
-        const fields = [
-            ["Home Odds", m["Home Odds"]], ["Draw Odds", m["Draw Odds"]], ["Away Odds", m["Away Odds"]],
-            ["Home Form", m["Home Form"]], ["Away Form", m["Away Form"]], ["Confidence %", m["Confidence %"]],
-            ["Correct Score", m["Correct Score"]], ["Match Result", m["Match Result"]],
-            ["H2H Home Wins", m["H2H Home Wins"]], ["H2H Draw", m["H2H Draw"]], ["H2H Away Wins", m["H2H Away Wins"]],
-            ["Home Scored Avg", m["Home Scored Avg"]], ["Away Scored Avg", m["Away Scored Avg"]],
-            ["Home Conceded Avg", m["Home Conceded Avg"]], ["Away Conceded Avg", m["Away Conceded Avg"]],
-            ["Home Power", m["Home Power"]], ["Away Power", m["Away Power"]],
-            ["Home Position", m["Home Position"]], ["Away Position", m["Away Position"]],
-            ["Form Difference", m["Form Difference"]], ["H2H Difference", m["H2H Difference"]],
-            ["Position Difference", m["Position Difference"]], ["Scored Difference", m["Scored Difference"]],
-            ["Conceded Difference", m["Conceded Difference"]], ["Power Difference", m["Power Difference"]],
-            ["Prediction Likely", m["Prediction Likely"]], ["Level Of Confidence", m["Level Of Confidence"]],
-            ["Match outcome category", m["Match outcome category"]],
-            ["Home Form Wins", m["Home Form Wins"]], ["Away Form Wins", m["Away Form Wins"]],
-            ["Form Wins Difference", m["Form Wins Difference"]]
-        ];
-
-        let html = `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">`;
-        fields.forEach(([label, val]) => {
-            html += `
-                <div class="bg-white p-3 rounded shadow-sm border border-gray-100 flex flex-col justify-center">
-                    <span class="text-[11px] text-gray-500 uppercase tracking-wide font-medium">${label}</span>
-                    <span class="text-base font-semibold text-navy-900 mt-1">${val !== undefined ? val : '-'}</span>
+        <!-- ==================== SETTINGS TAB ==================== -->
+        <div id="content-settings" class="hidden flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">Best Matches Thresholds</h2>
+                    <p class="text-xs text-gray-500">Configure global min/max thresholds applied to the Best Matches feed and Analysis overrides.</p>
                 </div>
-            `;
-        });
-        html += `</div>`;
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="resetSettingsDefaults()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 rounded shadow-sm text-sm font-semibold transition-colors">Reset</button>
+                    <button onclick="applySettingsLocally()" class="bg-customNavy hover:bg-blue-900 text-white px-6 py-2 rounded shadow-md text-sm font-semibold transition-colors">Save Settings</button>
+                </div>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1">
+                <div id="settings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- Populated by JS generateSettingsUI() -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- View Details Modal -->
+    <div id="view-modal" class="fixed inset-0 bg-black/60 hidden z-50 flex-col justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-gray-50 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
+            <div class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
+                <h3 id="modal-title" class="text-xl font-extrabold text-customNavy truncate pr-4">Match Details</h3>
+                <button onclick="closeModal('view-modal')" class="text-gray-400 hover:text-red-500 transition-colors p-1 bg-gray-100 hover:bg-red-50 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto bg-gray-50/50 flex-1">
+                <div id="modal-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Injected by JS viewDetails() -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Matches Advanced Filters Modal -->
+    <div id="adv-filter-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-gray-50 w-full max-w-5xl rounded-xl shadow-xl flex flex-col max-h-[85vh]">
+            <div class="bg-white border-b px-5 py-3 flex justify-between items-center rounded-t-xl">
+                <h3 class="text-lg font-bold text-gray-800">All Matches - Advanced Filters</h3>
+                <button onclick="closeAdvFilters()" class="text-gray-500 hover:text-gray-800">&times; Close</button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1">
+                <div id="adv-filter-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+            </div>
+            <div class="bg-white border-t px-5 py-3 flex justify-end gap-2 rounded-b-xl">
+                <button onclick="clearAdvFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-semibold">Clear</button>
+                <button onclick="applyAdvFilters()" class="px-4 py-2 bg-customNavy text-white rounded text-sm font-semibold shadow">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Best Matches Advanced Filters Modal -->
+    <div id="bm-adv-filter-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-green-50 w-full max-w-5xl rounded-xl shadow-xl flex flex-col max-h-[85vh]">
+            <div class="bg-white border-b border-green-200 px-5 py-3 flex justify-between items-center rounded-t-xl">
+                <h3 class="text-lg font-bold text-green-800">Best Matches - Advanced Filters</h3>
+                <button onclick="closeBmAdvFilters()" class="text-gray-500 hover:text-gray-800">&times; Close</button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1">
+                <div id="bm-adv-filter-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+            </div>
+            <div class="bg-white border-t border-green-200 px-5 py-3 flex justify-end gap-2 rounded-b-xl">
+                <button onclick="clearBmAdvFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-semibold">Clear</button>
+                <button onclick="applyBmAdvFilters()" class="px-4 py-2 bg-customGreen text-white rounded text-sm font-semibold shadow">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Advanced Filters Modal -->
+    <div id="an-adv-filter-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-indigo-50 w-full max-w-5xl rounded-xl shadow-xl flex flex-col max-h-[85vh]">
+            <div class="bg-white border-b border-indigo-200 px-5 py-3 flex justify-between items-center rounded-t-xl">
+                <h3 class="text-lg font-bold text-indigo-900">Analysis - Advanced Data Filters</h3>
+                <button onclick="closeAnAdvFilters()" class="text-gray-500 hover:text-gray-800">&times; Close</button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1">
+                <div id="an-adv-filter-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+            </div>
+            <div class="bg-white border-t border-indigo-200 px-5 py-3 flex justify-end gap-2 rounded-b-xl">
+                <button onclick="clearAnAdvFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-semibold">Clear</button>
+                <button onclick="applyAnAdvFilters()" class="px-4 py-2 bg-indigo-700 text-white rounded text-sm font-semibold shadow">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Matches Model Filters Modal -->
+    <div id="all-model-filter-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-xl flex flex-col">
+            <div class="border-b px-5 py-3 flex justify-between items-center rounded-t-xl bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800">Model Filters (All)</h3>
+                <button onclick="closeAllModelFilters()" class="text-gray-500 hover:text-gray-800">&times; Close</button>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 1 (Prediction)</label><select id="all-model-m1" class="w-full border rounded p-2 text-sm"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 2 (Match Tip)</label><select id="all-model-m2" class="w-full border rounded p-2 text-sm"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 3 (Outcome)</label><select id="all-model-m3" class="w-full border rounded p-2 text-sm"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 4 (Model Pred)</label><select id="all-model-m4" class="w-full border rounded p-2 text-sm"><option value="">All</option></select></div>
+            </div>
+            <div class="border-t px-5 py-3 flex justify-end gap-2 bg-gray-50 rounded-b-xl">
+                <button onclick="clearAllModelFilters()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-semibold">Clear</button>
+                <button onclick="applyAllModelFilters()" class="px-4 py-2 bg-customNavy text-white rounded text-sm font-semibold shadow">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Best Matches Model Filters Modal -->
+    <div id="bm-model-filter-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-xl flex flex-col">
+            <div class="border-b border-green-200 px-5 py-3 flex justify-between items-center rounded-t-xl bg-green-50">
+                <h3 class="text-lg font-bold text-green-800">Model Filters (Best)</h3>
+                <button onclick="closeBmModelFilters()" class="text-gray-500 hover:text-gray-800">&times; Close</button>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 1 (Prediction)</label><select id="bm-model-m1" class="w-full border rounded p-2 text-sm border-green-300"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 2 (Match Tip)</label><select id="bm-model-m2" class="w-full border rounded p-2 text-sm border-green-300"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 3 (Outcome)</label><select id="bm-model-m3" class="w-full border rounded p-2 text-sm border-green-300"><option value="">All</option></select></div>
+                <div><label class="block text-xs font-bold text-gray-600 mb-1">Model 4 (Model Pred)</label><select id="bm-model-m4" class="w-full border rounded p-2 text-sm border-green-300"><option value="">All</option></select></div>
+            </div>
+            <div class="border-t border-green-200 px-5 py-3 flex justify-end gap-2 bg-green-50 rounded-b-xl">
+                <button onclick="clearBmModelFilters()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded text-sm font-semibold">Clear</button>
+                <button onclick="applyBmModelFilters()" class="px-4 py-2 bg-customGreen text-white rounded text-sm font-semibold shadow">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Drilldown Modal -->
+    <div id="analysis-drilldown-modal" class="fixed inset-0 bg-black/60 hidden z-50 flex-col justify-center items-center p-4">
+        <div class="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div class="bg-indigo-50 border-b border-indigo-200 px-6 py-4 flex justify-between items-center shadow-sm">
+                <h3 id="drilldown-title" class="text-xl font-bold text-indigo-900 truncate">Model Drilldown</h3>
+                <button onclick="closeModal('analysis-drilldown-modal')" class="text-indigo-400 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 rounded-full p-1 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="px-6 py-2 bg-gray-50 border-b border-gray-200 text-sm font-semibold text-gray-600" id="drilldown-count">Total Matches: 0</div>
+            <div class="p-0 overflow-y-auto flex-1">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase">Home Team</th>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase">Away Team</th>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase text-center w-16">1 Odds</th>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase text-center w-16">X Odds</th>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase text-center w-16">2 Odds</th>
+                            <th class="py-2 px-3 text-xs font-bold text-gray-600 uppercase text-center w-20">Actual</th>
+                            <th id="drilldown-pred-header" class="py-2 px-3 text-xs font-bold text-indigo-700 uppercase text-center bg-indigo-50 w-32 border-l border-indigo-100">Prediction</th>
+                        </tr>
+                    </thead>
+                    <tbody id="drilldown-tbody" class="text-sm">
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DATA_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4skYgtxtfHuZElx4Mrx2n4NC0keZGjsKxgZNHOpPGrkVy2j_5GQWmyNlQu1y5TAjQKfDHAiBVknfi/pub?gid=1663545554&single=true&output=csv';
+        const SETTINGS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ZPDWEqN5dhGUsRkUDTFh2-osBnHf0aCkBUFHOOD_KHg/export?format=csv&gid=1001059226';
         
-        if (m["Match URL"] && m["Match URL"] !== '#') {
-            html += `<div class="mt-6 text-center"><a href="${m["Match URL"]}" target="_blank" class="px-6 py-2 bg-dcblue text-white rounded shadow hover:bg-blue-700">Open Match URL <i class="fa-solid fa-external-link ml-2"></i></a></div>`;
-        }
-
-        DOM.modalContent.innerHTML = html;
-        DOM.modal.classList.remove('hidden');
-    }
-
-    document.getElementById('close-modal').addEventListener('click', () => {
-        DOM.modal.classList.add('hidden');
-    });
-
-    function updateDashboardStats() {
-        document.getElementById('dash-total-matches').textContent = AppState.matches.length;
+        const ROWS_PER_PAGE = 30;
         
-        const best = AppState.matches.filter(m => {
-            const t = AppState.settings.thresholds;
-            if (parseFloat(m["Confidence %"]) < t.confidenceMin) return false;
-            return true;
-        });
-        document.getElementById('dash-best-matches').textContent = best.length;
-    }
-
-    function renderUsersTable() {
-        const tbody = document.getElementById('users-table-body');
-        tbody.innerHTML = AppState.allUsers.map(u => `
-            <tr>
-                <td class="px-4 py-3 font-medium">${u.name}</td>
-                <td class="px-4 py-3 text-gray-500">${u.email}</td>
-                <td class="px-4 py-3">
-                    <select class="role-select p-1 border rounded text-sm bg-white" data-uid="${u.uid}">
-                        <option value="ordinary" ${u.role==='ordinary'?'selected':''}>Ordinary</option>
-                        <option value="supervisor" ${u.role==='supervisor'?'selected':''}>Supervisor</option>
-                        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
-                    </select>
-                </td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                    <button class="text-dcblue text-sm hover:underline update-role-btn" data-uid="${u.uid}">Save</button>
-                </td>
-            </tr>
-        `).join('');
-
-        document.querySelectorAll('.update-role-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const uid = e.target.getAttribute('data-uid');
-                const select = document.querySelector(`.role-select[data-uid="${uid}"]`);
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', `user_${uid}`);
-                    await updateDoc(docRef, { role: select.value });
-                    showToast('User role updated successfully!');
-                } catch(err) {
-                    showToast('Failed to update role', true);
-                }
-            });
-        });
-    }
-
-    document.getElementById('btn-save-settings').addEventListener('click', async () => {
-        const cMin = parseFloat(document.getElementById('set-min-conf').value);
-        const pMin = parseFloat(document.getElementById('set-min-power').value);
-        const fMin = parseFloat(document.getElementById('set-min-form-diff').value);
+        let globalData = [];
+        let filteredAllData = [];
+        let filteredBestData = [];
+        let currentAnalysisData = [];
+        let allPage = 1;
+        let bestPage = 1;
+        let thresholds = {};
         
-        const newSettings = {
-            thresholds: { confidenceMin: cMin, powerMin: pMin, formDiffMin: fMin }
+        const settingsFields = [
+            "Home Odds", "Draw Odds", "Away Odds", "Home Form", "Away Form", "Confidence %", 
+            "Correct Score", "H2H Home Wins", "H2H Draw", "H2H Away Wins", "Home Scored Avg", 
+            "Home Conceded Avg", "Away Scored Avg", "Away Conceded Avg", "Home Power", "Away Power", 
+            "Home Position", "Away Position", "Form Difference", "H2H Difference", "Position Difference", 
+            "Scored Difference", "Conceded Difference", "Power Difference", "Prediction Likely", 
+            "Level Of Confidence", "Match outcome category", "Home Form Wins", "Away Form Wins", 
+            "Form Wins Difference", "Home Form Rate", "Away Form Rate"
+        ];
+
+        const advFields = [
+            "Home Scored Avg", "Home Conceded Avg", "Away Scored Avg", "Away Conceded Avg", 
+            "Home Power", "Away Power", "Home Position", "Away Position", "Form Difference", 
+            "H2H Difference", "Position Difference", "Scored Difference", "Conceded Difference", 
+            "Power Difference", "H2H Home Wins", "H2H Draw", "H2H Away Wins"
+        ];
+
+        let headerMap = {};
+
+        window.onload = async () => {
+            initDateFilter();
+            generateSettingsUI();
+            generateAdvFiltersUI();
+            
+            const cacheKey = 'datacompas_cache_' + btoa(DATA_SHEET_URL).slice(0, 20);
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                parseCSVData(cached);
+                loadSettingsFromLocalStorage();
+                populateDynamicDropdowns();
+                applyAllMatchesFilters();
+                applyBestMatchesFilters();
+                showLoader(false);
+                loadData(true);
+            } else {
+                await loadData(false);
+            }
         };
 
-        try {
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appSettings_global');
-            await setDoc(docRef, newSettings);
-            AppState.settings = newSettings;
-            showToast('Thresholds saved successfully!');
-            updateDashboardStats();
-        } catch(err) {
-            showToast('Error saving settings', true);
-        }
-    });
+        function initDateFilter() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const isoDate = `${yyyy}-${mm}-${dd}`;
+            const currentMonth = today.getMonth() + 1;
 
-    function initEvents() {
-        document.getElementById('current-date-display').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
 
-        // Filters
-        document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
-        document.getElementById('btn-reset-filters').addEventListener('click', () => {
-            document.getElementById('filter-search').value = '';
-            document.getElementById('filter-date').value = getTodayFormatted();
-            document.getElementById('filter-month').value = getMonthFormatted();
-            document.getElementById('filter-h-form').value = '';
-            document.getElementById('filter-a-form').value = '';
-            applyFilters();
-        });
-
-        document.getElementById('btn-toggle-advanced').addEventListener('click', () => {
-            const adv = document.getElementById('advanced-filters');
-            adv.classList.toggle('hidden');
-            const icon = document.querySelector('#btn-toggle-advanced i');
-            icon.classList.toggle('fa-caret-down');
-            icon.classList.toggle('fa-caret-up');
-        });
-
-        // Pagination
-        document.getElementById('btn-prev-page').addEventListener('click', () => {
-            if(AppState.currentPage > 1) { AppState.currentPage--; renderTable(); }
-        });
-        document.getElementById('btn-next-page').addEventListener('click', () => {
-            const total = AppState.filteredMatches.length;
-            if(AppState.currentPage * AppState.itemsPerPage < total) { AppState.currentPage++; renderTable(); }
-        });
-
-        // Auth Form Toggles
-        document.getElementById('toggle-signup').addEventListener('click', (e) => {
-            e.preventDefault(); document.getElementById('login-form').classList.add('hidden'); document.getElementById('signup-form').classList.remove('hidden');
-        });
-        document.getElementById('toggle-login').addEventListener('click', (e) => {
-            e.preventDefault(); document.getElementById('signup-form').classList.add('hidden'); document.getElementById('login-form').classList.remove('hidden');
-        });
-
-        // Login Logic
-        document.getElementById('btn-login').addEventListener('click', async () => {
-            const e = document.getElementById('auth-email').value, p = document.getElementById('auth-password').value;
-            const errorDiv = document.getElementById('auth-error');
-            errorDiv.classList.add('hidden');
+            safeSet('filter-date', isoDate);
+            safeSet('bm-filter-date', isoDate);
+            safeSet('filter-month', currentMonth);
+            safeSet('bm-filter-month', currentMonth);
             
-            if(!e || !p) {
-                 errorDiv.textContent = "Please enter email and password.";
-                 errorDiv.classList.remove('hidden');
-                 return;
+            // Analysis filters start empty by default
+            safeSet('an-filter-date', '');
+            safeSet('an-filter-month', '');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById('tab-' + tabId);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            ['all-matches', 'best-matches', 'analysis', 'settings'].forEach(id => {
+                const el = document.getElementById('content-' + id);
+                if (el) {
+                    if (id === tabId) {
+                        el.classList.remove('hidden');
+                        el.classList.add('flex');
+                    } else {
+                        el.classList.remove('flex');
+                        el.classList.add('hidden');
+                    }
+                }
+            });
+
+            if (tabId === 'analysis') {
+                renderAnalysisTab();
             }
+        }
+
+        // FIXED: Added null check here to resolve the reading 'style' of null error
+        function showLoader(show) { 
+            const loader = document.getElementById('loader');
+            if (loader) {
+                loader.style.display = show ? 'flex' : 'none'; 
+            }
+        }
+        
+        function showError(msg) {
+            const el = document.getElementById('error-message');
+            if(el) {
+                if(msg) { el.textContent = msg; el.classList.remove('hidden'); el.classList.add('block'); } 
+                else { el.classList.add('hidden'); el.classList.remove('block'); }
+            }
+        }
+
+        async function fetchWithFallback(url) {
+            const safeUrl = btoa(encodeURIComponent(url)).slice(0, 20);
+            const cacheKey = 'datacompas_cache_' + safeUrl;
+            const cacheTimeKey = cacheKey + '_time';
+            const cachedData = sessionStorage.getItem(cacheKey);
+            const cachedTime = sessionStorage.getItem(cacheTimeKey);
+            const now = new Date().getTime();
+
+            if (cachedData && cachedTime && (now - parseInt(cachedTime) < 600000)) {
+                return cachedData;
+            }
+
+            const timeoutMs = 15000; 
 
             try { 
-                const cred = await signInWithEmailAndPassword(auth, e, p); 
-                await setupUserProfile(cred.user, null, 'admin');
-            }
-            catch (err) { 
-                console.warn("Email login failed, bypassing locally for testing:", err);
-                const mockUser = { uid: 'local_' + Date.now(), email: e };
-                setupUserProfile(mockUser, null, 'admin');
-                showToast("Logged in via Local Bypass", false);
-            }
-        });
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                const response = await fetch(url, { signal: controller.signal }); 
+                clearTimeout(timeoutId);
+                if (response.ok) {
+                    const text = await response.text();
+                    sessionStorage.setItem(cacheKey, text);
+                    sessionStorage.setItem(cacheTimeKey, now.toString());
+                    return text;
+                } 
+            } catch (error) { console.warn("Direct fetch failed:", error); }
 
-        // Register Logic
-        document.getElementById('btn-register').addEventListener('click', async () => {
-            const n = document.getElementById('signup-name').value, e = document.getElementById('signup-email').value, p = document.getElementById('signup-password').value;
-            const errorDiv = document.getElementById('auth-error');
-            errorDiv.classList.add('hidden');
-            
-            if(!n || !e || !p) {
-                 errorDiv.textContent = "Please fill all fields.";
-                 errorDiv.classList.remove('hidden');
-                 return;
-            }
+            try { 
+                const aoUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url); 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                const aoResponse = await fetch(aoUrl, { signal: controller.signal }); 
+                clearTimeout(timeoutId);
+                if (aoResponse.ok) { 
+                    const data = await aoResponse.json(); 
+                    if (data.contents) {
+                        sessionStorage.setItem(cacheKey, data.contents);
+                        sessionStorage.setItem(cacheTimeKey, now.toString());
+                        return data.contents;
+                    } 
+                } 
+            } catch (proxyError) { console.warn("AllOrigins proxy failed:", proxyError); }
 
+            try { 
+                const ctUrl = "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(url); 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                const ctResponse = await fetch(ctUrl, { signal: controller.signal }); 
+                clearTimeout(timeoutId);
+                if (ctResponse.ok) {
+                    const text = await ctResponse.text();
+                    sessionStorage.setItem(cacheKey, text);
+                    sessionStorage.setItem(cacheTimeKey, now.toString());
+                    return text;
+                } 
+            } catch (proxyError2) { console.warn("CodeTabs proxy failed:", proxyError2); }
+
+            if (cachedData) return cachedData;
+            throw new Error(`All fetch attempts failed. This is usually due to network restrictions or the server taking too long to respond.`);
+        }
+
+        async function loadData(background = false) {
+            if (!background) {
+                showLoader(true); 
+                showError('');
+            }
             try {
-                const cred = await createUserWithEmailAndPassword(auth, e, p);
-                await setupUserProfile(cred.user, n, 'admin');
-            } catch (err) { 
-                console.warn("Email signup failed, bypassing locally for testing:", err);
-                const mockUser = { uid: 'local_' + Date.now(), email: e };
-                setupUserProfile(mockUser, n, 'admin');
-                showToast("Signed up via Local Bypass (Admin)", false);
+                const [settingsText, csvText] = await Promise.all([
+                    fetchWithFallback(SETTINGS_SHEET_URL).catch(() => null),
+                    fetchWithFallback(DATA_SHEET_URL)
+                ]);
+
+                if (settingsText) {
+                    parseSettingsCSV(settingsText);
+                    populateSettingsUI();
+                } else {
+                    loadSettingsFromLocalStorage();
+                }
+
+                if (!csvText || csvText.trim() === '') throw new Error("Data sheet is empty.");
+                parseCSVData(csvText);
+                populateDynamicDropdowns();
+                applyAllMatchesFilters();
+                applyBestMatchesFilters();
+            } catch (error) {
+                console.error("Error loading data:", error);
+                if (!background) {
+                    showError("Failed to load data. Ensure Google Sheets are published correctly. (" + error.message + ")");
+                }
+            } finally {
+                if (!background) {
+                    showLoader(false);
+                }
             }
-        });
+        }
+
+        function loadSettingsFromLocalStorage() {
+            const saved = localStorage.getItem('datacompas_thresholds');
+            if (saved) {
+                try { thresholds = JSON.parse(saved); populateSettingsUI(); } catch(err) {}
+            }
+        }
+
+        function parseCSV(text) {
+            const result = []; let row = []; let val = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                let char = text[i];
+                if (char === '"') {
+                    if (inQuotes && text[i+1] === '"') {
+                        val += '"'; i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    row.push(val.trim()); val = '';
+                } else if (char === '\n' && !inQuotes) {
+                    row.push(val.trim()); result.push(row); row = []; val = '';
+                } else if (char !== '\r') {
+                    val += char;
+                }
+            }
+            if (val || row.length > 0) { row.push(val.trim()); result.push(row); }
+            return result;
+        }
+
+        function parseCSVData(csvText) {
+            const parsed = parseCSV(csvText);
+            if (parsed.length < 2) return;
+            const headers = parsed[0];
+            headerMap = {}; 
+            headers.forEach((h, i) => { 
+                const key = h.replace(/\s+/g, ' ').trim().toLowerCase();
+                if (!headerMap[key]) headerMap[key] = [];
+                headerMap[key].push(i);
+            });
+            globalData = [];
+            for (let i = 1; i < parsed.length; i++) {
+                if (parsed[i].length > 1 && parsed[i].join('').trim() !== '') globalData.push(parsed[i]);
+            }
+        }
+
+        function parseSettingsCSV(csvText) {
+            const parsed = parseCSV(csvText);
+            if (parsed.length < 2) return;
+            const hMap = {}; parsed[0].forEach((h, i) => { hMap[h.trim().toLowerCase()] = i; });
+            const nameIdx = hMap['field'] !== undefined ? hMap['field'] : 0;
+            const minIdx = hMap['min'] !== undefined ? hMap['min'] : 1;
+            const maxIdx = hMap['max'] !== undefined ? hMap['max'] : 2;
+
+            thresholds = {};
+            for (let i = 1; i < parsed.length; i++) {
+                const row = parsed[i];
+                if(row[nameIdx]) {
+                    thresholds[row[nameIdx].trim()] = { min: row[minIdx] ? row[minIdx] : '', max: row[maxIdx] ? row[maxIdx] : '' };
+                }
+            }
+        }
+
+        function populateDynamicDropdowns() {
+            const leaguesSet = new Set(); const predsSet = new Set();
+            const m1Set = new Set(), m2Set = new Set(), m3Set = new Set(), m4Set = new Set();
+            
+            globalData.forEach(row => {
+                const l = getVal(row, 'League'); const p = getVal(row, 'Prediction');
+                if (l) leaguesSet.add(l); if (p) predsSet.add(p);
+                
+                const m1 = getVal(row, 'Prediction'); if(m1) m1Set.add(m1);
+                const m2 = getVal(row, 'Match Prediction Tip'); if(m2) m2Set.add(m2);
+                const m3 = getVal(row, 'Match outcome Prediction'); if(m3) m3Set.add(m3);
+                const m4 = getVal(row, 'Model Prediction'); if(m4) m4Set.add(m4);
+            });
+            const leagueSelects = [document.getElementById('filter-league'), document.getElementById('bm-filter-league'), document.getElementById('an-filter-league')];
+            const predSelects = [document.getElementById('filter-prediction'), document.getElementById('bm-filter-prediction'), document.getElementById('an-filter-prediction')];
+
+            leagueSelects.forEach(sel => {
+                if(!sel) return; const currentVal = sel.value;
+                sel.innerHTML = '<option value="">All Leagues</option>';
+                Array.from(leaguesSet).sort().forEach(lg => { const opt = document.createElement('option'); opt.value = lg; opt.textContent = lg; sel.appendChild(opt); });
+                sel.value = currentVal;
+            });
+
+            predSelects.forEach(sel => {
+                if(!sel) return; const currentVal = sel.value;
+                sel.innerHTML = '<option value="">All Predictions</option>';
+                Array.from(predsSet).sort().forEach(pr => { const opt = document.createElement('option'); opt.value = pr; opt.textContent = pr; sel.appendChild(opt); });
+                sel.value = currentVal;
+            });
+            
+            const populateSelects = (ids, set) => {
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) {
+                        const currentVal = el.value;
+                        el.innerHTML = '<option value="">All</option>';
+                        Array.from(set).sort().forEach(v => { 
+                            const opt = document.createElement('option'); opt.value = v; opt.textContent = v; el.appendChild(opt); 
+                        });
+                        el.value = currentVal;
+                    }
+                });
+            };
+            
+            populateSelects(['all-model-m1', 'bm-model-m1'], m1Set);
+            populateSelects(['all-model-m2', 'bm-model-m2'], m2Set);
+            populateSelects(['all-model-m3', 'bm-model-m3'], m3Set);
+            populateSelects(['all-model-m4', 'bm-model-m4'], m4Set);
+        }
+
+        function generateSettingsUI() {
+            const container = document.getElementById('settings-grid');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            settingsFields.forEach(field => {
+                const div = document.createElement('div');
+                div.className = 'grid grid-cols-[1fr_70px_70px] gap-2 items-center py-2 px-3 border border-gray-100 bg-white shadow-sm hover:bg-indigo-50 rounded-lg transition-colors';
+                div.innerHTML = `
+                    <label class="text-xs font-bold text-customNavy truncate pr-2" title="${field}">${field}</label>
+                    <input type="number" step="any" id="set-min-${field.replace(/\s+/g, '-')}" placeholder="Min" class="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-customTeal w-full text-center">
+                    <input type="number" step="any" id="set-max-${field.replace(/\s+/g, '-')}" placeholder="Max" class="border border-gray-300 rounded-md px-2 py-1 text-xs focus:outline-customTeal w-full text-center">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function generateAdvFiltersUI() {
+            const advContainer = document.getElementById('adv-filter-grid');
+            const bmAdvContainer = document.getElementById('bm-adv-filter-grid');
+            const anAdvContainer = document.getElementById('an-adv-filter-grid');
+            if(!advContainer || !bmAdvContainer || !anAdvContainer) return;
+            advContainer.innerHTML = '';
+            bmAdvContainer.innerHTML = '';
+            anAdvContainer.innerHTML = '';
+            
+            advFields.forEach(field => {
+                const fId = field.replace(/\s+/g, '-');
+                advContainer.innerHTML += `
+                    <div class="bg-white p-2.5 rounded shadow-sm border border-gray-200 flex flex-col">
+                        <label class="text-xs font-semibold text-gray-700 mb-1.5 truncate" title="${field}">${field}</label>
+                        <div class="flex space-x-2">
+                            <input type="number" step="any" id="adv-min-${fId}" placeholder="Min" class="w-1/2 border rounded px-2 py-1 text-xs focus:outline-customNavy bg-gray-50">
+                            <input type="number" step="any" id="adv-max-${fId}" placeholder="Max" class="w-1/2 border rounded px-2 py-1 text-xs focus:outline-customNavy bg-gray-50">
+                        </div>
+                    </div>
+                `;
+                bmAdvContainer.innerHTML += `
+                    <div class="bg-white p-2.5 rounded shadow-sm border border-green-200 flex flex-col">
+                        <label class="text-xs font-semibold text-green-700 mb-1.5 truncate" title="${field}">${field}</label>
+                        <div class="flex space-x-2">
+                            <input type="number" step="any" id="bm-adv-min-${fId}" placeholder="Min" class="w-1/2 border-green-200 border rounded px-2 py-1 text-xs focus:outline-customGreen bg-green-50/50">
+                            <input type="number" step="any" id="bm-adv-max-${fId}" placeholder="Max" class="w-1/2 border-green-200 border rounded px-2 py-1 text-xs focus:outline-customGreen bg-green-50/50">
+                        </div>
+                    </div>
+                `;
+                anAdvContainer.innerHTML += `
+                    <div class="bg-white p-2.5 rounded shadow-sm border border-indigo-200 flex flex-col">
+                        <label class="text-xs font-semibold text-indigo-900 mb-1.5 truncate" title="${field}">${field}</label>
+                        <div class="flex space-x-2">
+                            <input type="number" step="any" id="an-adv-min-${fId}" placeholder="Min" class="w-1/2 border-indigo-200 border rounded px-2 py-1 text-xs focus:outline-indigo-500 bg-indigo-50/50">
+                            <input type="number" step="any" id="an-adv-max-${fId}" placeholder="Max" class="w-1/2 border-indigo-200 border rounded px-2 py-1 text-xs focus:outline-indigo-500 bg-indigo-50/50">
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function populateSettingsUI() {
+            settingsFields.forEach(field => {
+                const minInput = document.getElementById(`set-min-${field.replace(/\s+/g, '-')}`);
+                const maxInput = document.getElementById(`set-max-${field.replace(/\s+/g, '-')}`);
+                if (thresholds[field]) {
+                    if (minInput) minInput.value = thresholds[field].min || '';
+                    if (maxInput) maxInput.value = thresholds[field].max || '';
+                }
+            });
+        }
+
+        function applySettingsLocally() {
+            settingsFields.forEach(field => {
+                const minInput = document.getElementById(`set-min-${field.replace(/\s+/g, '-')}`);
+                const maxInput = document.getElementById(`set-max-${field.replace(/\s+/g, '-')}`);
+                thresholds[field] = {
+                    min: minInput ? minInput.value.trim() : '',
+                    max: maxInput ? maxInput.value.trim() : ''
+                };
+            });
+            localStorage.setItem('datacompas_thresholds', JSON.stringify(thresholds));
+            
+            const btn = document.querySelector('button[onclick="applySettingsLocally()"]');
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = 'Saved!';
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                btn.classList.remove('bg-customNavy', 'hover:bg-blue-900');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    btn.classList.add('bg-customNavy', 'hover:bg-blue-900');
+                }, 2000);
+            }
+
+            applyBestMatchesFilters();
+            switchTab('best-matches');
+        }
+
+        function resetSettingsDefaults() {
+            thresholds = {};
+            localStorage.removeItem('datacompas_thresholds');
+            settingsFields.forEach(field => {
+                const minInput = document.getElementById(`set-min-${field.replace(/\s+/g, '-')}`);
+                const maxInput = document.getElementById(`set-max-${field.replace(/\s+/g, '-')}`);
+                if(minInput) minInput.value = '';
+                if(maxInput) maxInput.value = '';
+            });
+            applyBestMatchesFilters();
+        }
+
+        function getVal(row, colName, occurrence = 0) {
+            const key = colName.replace(/\s+/g, ' ').trim().toLowerCase();
+            const indices = headerMap[key];
+            if (indices && Array.isArray(indices)) {
+                const idx = indices[occurrence] !== undefined ? indices[occurrence] : indices[0];
+                return idx !== undefined && idx < row.length ? row[idx] : '';
+            }
+            return '';
+        }
+
+        function parseSheetDate(dateStr) {
+            if (!dateStr) return null;
+            const partsSpace = dateStr.trim().split(/\s+/);
+            if (partsSpace.length >= 2) {
+                const day = parseInt(partsSpace[0], 10);
+                const monthStr = partsSpace[1].toLowerCase();
+                const monthMap = { 'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12 };
+                let month = monthMap[monthStr.substring(0, 3)];
+                if (month && !isNaN(day)) return { m: month, d: day, y: new Date().getFullYear() }; 
+            }
+            const parts = dateStr.split(/[-/]/);
+            if (parts.length >= 3) return { m: parseInt(parts[0]), d: parseInt(parts[1]), y: parseInt(parts[2]) };
+            return null;
+        }
+
+        function applyAllMatchesFilters() {
+            filteredAllData = globalData.filter(row => matchRowFilters(row, 'all'));
+            allPage = 1; renderTable('all');
+        }
+
+        function applyBestMatchesFilters() {
+            let temp = globalData.filter(row => matchRowFilters(row, 'best'));
+            filteredBestData = temp.filter(row => matchThresholds(row));
+            bestPage = 1; renderTable('best');
+        }
+
+        function resetAllMatchesFilters() {
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            safeSet('filter-league', '');
+            safeSet('filter-prediction', '');
+            safeSet('filter-home-form-min', '');
+            safeSet('filter-home-form-max', '');
+            safeSet('filter-away-form-min', '');
+            safeSet('filter-away-form-max', '');
+            safeSet('search-team', '');
+            initDateFilter();
+            clearAdvFilters(false);
+            clearAllModelFilters(false);
+            applyAllMatchesFilters();
+        }
+
+        function resetBestMatchesFilters() {
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            safeSet('bm-filter-league', '');
+            safeSet('bm-filter-prediction', '');
+            safeSet('bm-search-team', '');
+            initDateFilter();
+            clearBmAdvFilters(false);
+            clearBmModelFilters(false);
+            applyBestMatchesFilters();
+        }
+
+        function matchThresholds(row) {
+            if (!thresholds || Object.keys(thresholds).length === 0) return true;
+            for (let field in thresholds) {
+                const item = thresholds[field];
+                if (!item) continue;
+                const min = item.min;
+                const max = item.max;
+                if ((min !== '' && min !== null && min !== undefined) || (max !== '' && max !== null && max !== undefined)) {
+                    let val = parseFloat(getVal(row, field));
+                    if (isNaN(val)) return false;
+                    if (min !== '' && !isNaN(parseFloat(min)) && val < parseFloat(min)) return false;
+                    if (max !== '' && !isNaN(parseFloat(max)) && val > parseFloat(max)) return false;
+                }
+            }
+            return true;
+        }
+
+        function matchAnalysisRowFilters(row) {
+            const dDate = document.getElementById('an-filter-date').value;
+            const dMonth = document.getElementById('an-filter-month').value;
+            const dLeague = document.getElementById('an-filter-league').value.toLowerCase();
+            const dPred = document.getElementById('an-filter-prediction').value.toLowerCase();
+            const dSearch = document.getElementById('an-search-team').value.toLowerCase();
+
+            const rowDateParsed = parseSheetDate(getVal(row, 'Date'));
+            if (dMonth) { if (!rowDateParsed || rowDateParsed.m !== parseInt(dMonth)) return false; }
+            if (dDate) {
+                const [y, m, d] = dDate.split('-');
+                if (!rowDateParsed || rowDateParsed.y !== parseInt(y) || rowDateParsed.m !== parseInt(m) || rowDateParsed.d !== parseInt(d)) return false;
+            }
+
+            if (dLeague && (getVal(row, 'League')||'').toLowerCase() !== dLeague) return false;
+            if (dPred && (getVal(row, 'Prediction')||'').toLowerCase() !== dPred) return false;
+
+            if (dSearch) {
+                const home = (getVal(row, 'Home Team')||'').toLowerCase();
+                const away = (getVal(row, 'Away Team')||'').toLowerCase();
+                if (!home.includes(dSearch) && !away.includes(dSearch)) return false;
+            }
+
+            for (let f of advFields) {
+                const fId = f.replace(/\s+/g, '-');
+                const minEl = document.getElementById(`an-adv-min-${fId}`);
+                const maxEl = document.getElementById(`an-adv-max-${fId}`);
+                
+                const minVal = minEl ? minEl.value : '';
+                const maxVal = maxEl ? maxEl.value : '';
+                
+                if (minVal !== '' || maxVal !== '') {
+                    let cellVal = parseFloat(getVal(row, f));
+                    if (isNaN(cellVal)) return false;
+                    if (minVal !== '' && cellVal < parseFloat(minVal)) return false;
+                    if (maxVal !== '' && cellVal > parseFloat(maxVal)) return false;
+                }
+            }
+
+            const applyThresholds = document.getElementById('an-apply-thresholds').checked;
+            if (applyThresholds && !matchThresholds(row)) return false;
+
+            return true;
+        }
+
+        function matchRowFilters(row, type) {
+            const prefix = type === 'all' ? '' : 'bm-';
+
+            const dDate = document.getElementById(prefix + 'filter-date').value;
+            const dMonth = document.getElementById(prefix + 'filter-month').value;
+            const dLeague = document.getElementById(prefix + 'filter-league').value.toLowerCase();
+            const dPred = document.getElementById(prefix + 'filter-prediction').value.toLowerCase();
+            const dSearch = document.getElementById(prefix + 'search-team').value.toLowerCase();
+
+            const rowDateParsed = parseSheetDate(getVal(row, 'Date'));
+            if (dMonth) { if (!rowDateParsed || rowDateParsed.m !== parseInt(dMonth)) return false; }
+            if (dDate) {
+                const [y, m, d] = dDate.split('-');
+                if (!rowDateParsed || rowDateParsed.y !== parseInt(y) || rowDateParsed.m !== parseInt(m) || rowDateParsed.d !== parseInt(d)) return false;
+            }
+
+            if (dLeague && (getVal(row, 'League')||'').toLowerCase() !== dLeague) return false;
+            if (dPred && (getVal(row, 'Prediction')||'').toLowerCase() !== dPred) return false;
+            
+            if (type === 'all') {
+                const hMin = document.getElementById('filter-home-form-min').value;
+                const hMax = document.getElementById('filter-home-form-max').value;
+                const aMin = document.getElementById('filter-away-form-min').value;
+                const aMax = document.getElementById('filter-away-form-max').value;
+                const hRate = parseFloat(getVal(row, 'Home Form Rate'));
+                const aRate = parseFloat(getVal(row, 'Away Form Rate'));
+
+                if (hMin !== '' && !isNaN(hRate) && hRate < parseFloat(hMin)) return false;
+                if (hMax !== '' && !isNaN(hRate) && hRate > parseFloat(hMax)) return false;
+                if (aMin !== '' && !isNaN(aRate) && aRate < parseFloat(aMin)) return false;
+                if (aMax !== '' && !isNaN(aRate) && aRate > parseFloat(aMax)) return false;
+            }
+
+            if (dSearch) {
+                const home = (getVal(row, 'Home Team')||'').toLowerCase();
+                const away = (getVal(row, 'Away Team')||'').toLowerCase();
+                if (!home.includes(dSearch) && !away.includes(dSearch)) return false;
+            }
+
+            const m1 = document.getElementById(type === 'all' ? 'all-model-m1' : 'bm-model-m1').value;
+            const m2 = document.getElementById(type === 'all' ? 'all-model-m2' : 'bm-model-m2').value;
+            const m3 = document.getElementById(type === 'all' ? 'all-model-m3' : 'bm-model-m3').value;
+            const m4 = document.getElementById(type === 'all' ? 'all-model-m4' : 'bm-model-m4').value;
+            
+            if (m1 && getVal(row, 'Prediction') !== m1) return false;
+            if (m2 && getVal(row, 'Match Prediction Tip') !== m2) return false;
+            if (m3 && getVal(row, 'Match outcome Prediction') !== m3) return false;
+            if (m4 && getVal(row, 'Model Prediction') !== m4) return false;
+
+            const advPrefix = type === 'all' ? 'adv-' : 'bm-adv-';
+            for (let f of advFields) {
+                const fId = f.replace(/\s+/g, '-');
+                const minEl = document.getElementById(`${advPrefix}min-${fId}`);
+                const maxEl = document.getElementById(`${advPrefix}max-${fId}`);
+                
+                const minVal = minEl ? minEl.value : '';
+                const maxVal = maxEl ? maxEl.value : '';
+                
+                if (minVal !== '' || maxVal !== '') {
+                    let cellVal = parseFloat(getVal(row, f));
+                    if (isNaN(cellVal)) return false;
+                    if (minVal !== '' && cellVal < parseFloat(minVal)) return false;
+                    if (maxVal !== '' && cellVal > parseFloat(maxVal)) return false;
+                }
+            }
+
+            return true;
+        }
+
+        function applyAnalysisFilters() { renderAnalysisTab(); }
+
+        function resetAnalysisFilters() {
+            const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            safeSet('an-filter-league', '');
+            safeSet('an-filter-prediction', '');
+            safeSet('an-search-team', '');
+            const threshEl = document.getElementById('an-apply-thresholds');
+            if (threshEl) threshEl.checked = false;
+            safeSet('an-filter-date', '');
+            safeSet('an-filter-month', '');
+            clearAnAdvFilters(false);
+            renderAnalysisTab();
+        }
+
+        function getActualOutcome(result) {
+            if (!result || !result.includes('-')) return '';
+            const parts = result.split('-');
+            const homeG = parseInt(parts[0]); const awayG = parseInt(parts[1]);
+            if (isNaN(homeG) || isNaN(awayG)) return '';
+            if (homeG > awayG) return '1'; 
+            if (homeG < awayG) return '2'; 
+            return 'X'; 
+        }
+
+        function normalizePrediction(pred) {
+            if (!pred) return '';
+            let p = pred.toString().trim().toLowerCase();
+            if (p.includes('home') || p === '1') return '1';
+            if (p.includes('away') || p === '2') return '2';
+            if (p.includes('draw') || p === 'x') return 'X';
+            return '';
+        }
+
+        function getOutcomeColorClass(prediction, result) {
+            if (!prediction || !result || result.trim() === '-' || result.trim() === '') return 'bg-gray-100 text-gray-700';
+            let predClean = prediction.toString().trim().toLowerCase();
+            let resultClean = result.toString().trim();
+            const parts = resultClean.split('-');
+            if (parts.length !== 2) return 'bg-gray-100 text-gray-700';
+            const homeG = parseInt(parts[0]); const awayG = parseInt(parts[1]);
+            if (isNaN(homeG) || isNaN(awayG)) return 'bg-gray-100 text-gray-700';
+            
+            let matchOutcome = '';
+            if (homeG > awayG) matchOutcome = '1';
+            else if (homeG < awayG) matchOutcome = '2';
+            else if (homeG === awayG) matchOutcome = 'x';
+            else return 'bg-gray-100 text-gray-700';
+
+            if (predClean.includes('home') || predClean === '1') predClean = '1';
+            else if (predClean.includes('away') || predClean === '2') predClean = '2';
+            else if (predClean.includes('draw') || predClean === 'x') predClean = 'x';
+
+            return predClean === matchOutcome ? 'win-green' : 'loss-red';
+        }
+
+        function createModeCell(r, colPred, colProb, result) {
+            let pred = getVal(r, colPred) || '-'; 
+            let prob = getVal(r, colProb) || '-'; 
+            let colorClass = getOutcomeColorClass(pred, result);
+
+            return `
+                <td class="py-2 px-3 border-b text-center border-l border-gray-200">
+                    <div class="flex flex-col items-center">
+                        <span class="font-bold text-sm ${colorClass} px-2 py-0.5 rounded shadow-sm block w-full mb-1 border ${colorClass === 'win-green' ? 'border-green-300' : (colorClass === 'loss-red' ? 'border-red-300' : 'border-gray-200')}">${pred}</span>
+                        <span class="text-xs text-gray-500 font-medium bg-gray-50 px-1 rounded border border-gray-100">${prob}</span>
+                    </div>
+                </td>
+            `;
+        }
+
+        function calculateModelWins(data) {
+            let wins = [0, 0, 0, 0];
+            let totalValid = [0, 0, 0, 0];
+            
+            const modelConfigs = [
+                { predCol: 'Prediction' },         
+                { predCol: 'Match Prediction Tip' },   
+                { predCol: 'Match outcome Prediction' }, 
+                { predCol: 'Model Prediction' } 
+            ];
+
+            data.forEach(row => {
+                const result = getVal(row, 'Match Result');
+                if (!result || result.trim() === '' || !result.includes('-')) return;
+
+                modelConfigs.forEach((cfg, idx) => {
+                    const pred = getVal(row, cfg.predCol);
+                    if (pred && pred !== '-') {
+                        totalValid[idx]++;
+                        if (getOutcomeColorClass(pred, result) === 'win-green') {
+                            wins[idx]++;
+                        }
+                    }
+                });
+            });
+
+            return { wins, totalValid };
+        }
+
+        function renderAnalysisTab() {
+            const data = globalData.filter(row => matchAnalysisRowFilters(row));
+            currentAnalysisData = data; 
+            
+            const models = [
+                { name: 'Model 1', predCol: 'Prediction' },
+                { name: 'Model 2', predCol: 'Match Prediction Tip' },
+                { name: 'Model 3', predCol: 'Match outcome Prediction' },
+                { name: 'Model 4', predCol: 'Model Prediction' }
+            ];
+
+            let stats = models.map(m => ({
+                name: m.name,
+                predCol: m.predCol,
+                overallWin: 0, overallTotal: 0,
+                homeWin: 0, homeTotal: 0,
+                drawWin: 0, drawTotal: 0,
+                awayWin: 0, awayTotal: 0
+            }));
+
+            data.forEach(row => {
+                const result = getVal(row, 'Match Result');
+                const actual = getActualOutcome(result);
+                if (!actual) return;
+
+                models.forEach((m, idx) => {
+                    const rawPred = getVal(row, m.predCol, m.occurrence);
+                    const predNorm = normalizePrediction(rawPred);
+                    if (!predNorm) return;
+
+                    stats[idx].overallTotal++;
+                    if (predNorm === actual) {
+                        stats[idx].overallWin++;
+                    }
+
+                    if (actual === '1') {
+                        stats[idx].homeTotal++;
+                        if (predNorm === '1') stats[idx].homeWin++;
+                    } else if (actual === 'X') {
+                        stats[idx].drawTotal++;
+                        if (predNorm === 'X') stats[idx].drawWin++;
+                    } else if (actual === '2') {
+                        stats[idx].awayTotal++;
+                        if (predNorm === '2') stats[idx].awayWin++;
+                    }
+                });
+            });
+
+            const renderRankingTable = (tbodyId, winKey, totalKey, isOverall = false) => {
+                const tbody = document.getElementById(tbodyId);
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                let sorted = [...stats].map((s, originalIdx) => {
+                    const tot = s[totalKey];
+                    const w = s[winKey];
+                    const rate = tot > 0 ? (w / tot) * 100 : 0;
+                    const score = (w * 10) + (tot * 0.1);
+                    return { ...s, rate, tot, w, score, originalIdx };
+                }).sort((a, b) => b.rate - a.rate || b.w - a.w);
+
+                if (sorted.length === 0 || sorted.every(s => s[totalKey] === 0)) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">No match results available to analyze</td></tr>`;
+                    return;
+                }
+
+                sorted.forEach((item, index) => {
+                    const rankEmoji = index === 0 ? '🏆' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+                    const rowClass = index === 0 ? 'bg-amber-50/50 font-semibold' : '';
+                    const nameLabel = isOverall ? `${item.name} <span class="text-[10px] font-normal text-gray-500 ml-1">(${item.predCol})</span>` : item.name;
+                    const categoryParam = isOverall ? 'ALL' : (winKey.includes('home') ? '1' : winKey.includes('draw') ? 'X' : '2');
+                    
+                    tbody.innerHTML += `
+                        <tr class="${rowClass} cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-100 last:border-0" onclick="openAnalysisDrilldown(${item.originalIdx}, '${categoryParam}')">
+                            <td class="py-3 px-3 font-bold text-gray-700">${rankEmoji}</td>
+                            <td class="py-3 px-3 text-gray-800 font-medium">${nameLabel}</td>
+                            <td class="py-3 px-3 text-center"><span class="bg-gray-100 px-2 py-0.5 rounded font-mono text-gray-600 border border-gray-200">${item[winKey]}/${item[totalKey]}</span></td>
+                            <td class="py-3 px-3 text-center font-bold text-emerald-700">${item.rate.toFixed(1)}%</td>
+                            <td class="py-3 px-3 text-center font-bold text-indigo-900">${item.score.toFixed(1)}</td>
+                        </tr>
+                    `;
+                });
+            };
+
+            renderRankingTable('analysis-overall-tbody', 'overallWin', 'overallTotal', true);
+            renderRankingTable('analysis-home-tbody', 'homeWin', 'homeTotal', false);
+            renderRankingTable('analysis-draw-tbody', 'drawWin', 'drawTotal', false);
+            renderRankingTable('analysis-away-tbody', 'awayWin', 'awayTotal', false);
+        }
+
+        function renderTable(type) {
+            const tbody = document.getElementById(`table-body-${type}`);
+            if (!tbody) return;
+            const data = type === 'all' ? filteredAllData : filteredBestData;
+            const page = type === 'all' ? allPage : bestPage;
+            
+            const stats = calculateModelWins(data);
+            for (let i = 0; i < 4; i++) {
+                const summaryEl = document.getElementById(`summary-${type}-m${i+1}`);
+                if (summaryEl) {
+                    const count = stats.wins[i];
+                    const total = stats.totalValid[i];
+                    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                    summaryEl.textContent = `${count}/${total} (${pct}%)`;
+                }
+            }
+
+            tbody.innerHTML = '';
+            const start = (page - 1) * ROWS_PER_PAGE;
+            const end = Math.min(start + ROWS_PER_PAGE, data.length);
+            
+            const pageInfoEl = document.getElementById(`page-info-${type}`);
+            if(pageInfoEl) pageInfoEl.textContent = `Showing ${data.length > 0 ? start + 1 : 0}-${end} of ${data.length}`;
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500 font-semibold bg-gray-50">No matches found for the selected filters.</td></tr>`;
+            }
+
+            for (let i = start; i < end; i++) {
+                const r = data[i]; const tr = document.createElement('tr');
+                tr.className = "hover:bg-indigo-50/50 transition-colors border-b border-gray-100 last:border-0";
+                
+                const home = getVal(r, 'Home Team'); const away = getVal(r, 'Away Team'); const result = getVal(r, 'Match Result');
+                
+                let m1 = createModeCell(r, 'Prediction', 'Confidence %', result);
+                let m2 = createModeCell(r, 'Match Prediction Tip', 'Prediction Likely', result);
+                let m3 = createModeCell(r, 'Match outcome Prediction', 'Match outcome chance', result);
+                let m4 = createModeCell(r, 'Model Prediction', 'Model Prob %', result);
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 border-b font-bold text-customNavy max-w-[140px] truncate" title="${home}">${home}</td>
+                    <td class="py-3 px-3 border-b font-bold text-gray-800 max-w-[140px] truncate" title="${away}">${away}</td>
+                    ${m1} ${m2} ${m3} ${m4}
+                    <td class="py-3 px-3 border-b text-center font-extrabold text-lg text-gray-800 tracking-wide">${result || '-'}</td>
+                    <td class="py-3 px-3 border-b text-center">
+                        <button onclick='viewDetails(${i}, "${type}")' class="bg-customNavy hover:bg-blue-900 text-white text-xs px-3 py-1.5 rounded-lg shadow transition-colors font-semibold">View</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+            
+            const tableContainer = tbody.closest('.table-container');
+            if (tableContainer && tableContainer.nextElementSibling) {
+                const btns = tableContainer.nextElementSibling.querySelectorAll('button');
+                if (btns.length >= 2) {
+                    btns[0].disabled = page === 1;
+                    btns[1].disabled = end >= data.length;
+                }
+            }
+        }
+
+        function prevPage(type) {
+            if (type === 'all' && allPage > 1) { allPage--; renderTable('all'); }
+            if (type === 'best' && bestPage > 1) { bestPage--; renderTable('best'); }
+        }
+
+        function nextPage(type) {
+            const maxPageAll = Math.ceil(filteredAllData.length / ROWS_PER_PAGE);
+            const maxPageBest = Math.ceil(filteredBestData.length / ROWS_PER_PAGE);
+            if (type === 'all' && allPage < maxPageAll) { allPage++; renderTable('all'); }
+            if (type === 'best' && bestPage < maxPageBest) { bestPage++; renderTable('best'); }
+        }
+
+        function viewDetails(index, type) {
+            const data = type === 'all' ? filteredAllData : filteredBestData;
+            const r = data[index];
+            if (!r) return;
+
+            document.getElementById('modal-title').textContent = `${getVal(r, 'Home Team')} vs ${getVal(r, 'Away Team')}`;
+            const content = document.getElementById('modal-content');
+            content.innerHTML = '';
+
+            let result = getVal(r, 'Match Result');
+            if(!result || result.trim() === '') result = "Pending / Unknown";
+            
+            let matchUrl = getVal(r, 'Match URL');
+
+            content.innerHTML += `
+                <div class="col-span-1 md:col-span-2 lg:col-span-3 bg-white p-4 rounded-xl shadow border border-indigo-100 flex flex-col items-center justify-center">
+                    <span class="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-1">Match Result</span>
+                    <span class="text-4xl font-black text-customNavy mb-2">${result}</span>
+                    ${matchUrl && matchUrl !== '-' ? `<a href="${matchUrl}" target="_blank" class="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors mt-1 flex items-center gap-1 shadow-sm">🔗 Open External Match Link</a>` : '<span class="text-xs font-medium text-gray-400 bg-gray-100 px-3 py-1 rounded-full mt-1">No External Link Available</span>'}
+                </div>
+            `;
+
+            const renderGroup = (title, fields) => {
+                let html = `<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
+                                <h4 class="font-extrabold text-gray-800 text-sm mb-3 border-b border-gray-100 pb-2">${title}</h4>
+                                <div class="space-y-2 flex-1">`;
+                fields.forEach(f => {
+                    if (f === 'Match URL' || f === 'Match Result') return;
+                    let val = getVal(r, f) || '-';
+                    html += `
+                        <div class="flex justify-between items-center py-1 border-b border-gray-50 last:border-0 text-sm">
+                            <span class="font-semibold text-gray-500 w-1/2 pr-2">${f}</span>
+                            <span class="font-bold text-gray-900 w-1/2 text-right truncate bg-gray-50 px-2 py-0.5 rounded" title="${val}">${val}</span>
+                        </div>`;
+                });
+                html += `</div></div>`;
+                return html;
+            };
+
+            content.innerHTML += renderGroup('Odds & Market', ['Home Odds', 'Draw Odds', 'Away Odds']);
+            content.innerHTML += renderGroup('Form & Ratings', ['Home Form', 'Away Form', 'Form Difference', 'Home Form Rate', 'Away Form Rate']);
+            content.innerHTML += renderGroup('Form Wins', ['Home Form Wins', 'Away Form Wins', 'Form Wins Difference']);
+            content.innerHTML += renderGroup('Goals (Averages)', ['Home Scored Avg', 'Away Scored Avg', 'Scored Difference', 'Home Conceded Avg', 'Away Conceded Avg', 'Conceded Difference']);
+            content.innerHTML += renderGroup('Power & Table Position', ['Home Power', 'Away Power', 'Power Difference', 'Home Position', 'Away Position', 'Position Difference']);
+            content.innerHTML += renderGroup('Head to Head (H2H)', ['H2H Home Wins', 'H2H Draw', 'H2H Away Wins', 'H2H Difference']);
+            content.innerHTML += renderGroup('Predictions & Models', ['Confidence %', 'Correct Score', 'Prediction Likely', 'Level Of Confidence', 'Match outcome category']);
+
+            document.getElementById('view-modal').classList.remove('hidden');
+            document.getElementById('view-modal').classList.add('flex');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            document.getElementById(id).classList.remove('flex');
+        }
+
+        function openAdvFilters() {
+            document.getElementById('adv-filter-modal').classList.remove('hidden');
+            document.getElementById('adv-filter-modal').classList.add('flex');
+        }
+        function closeAdvFilters() { closeModal('adv-filter-modal'); }
+        function clearAdvFilters(apply = true) {
+            const inputs = document.getElementById('adv-filter-grid').querySelectorAll('input');
+            inputs.forEach(inp => inp.value = '');
+            if(apply) applyAllMatchesFilters();
+        }
+        function applyAdvFilters() { applyAllMatchesFilters(); closeAdvFilters(); }
+
+        function openBmAdvFilters() {
+            document.getElementById('bm-adv-filter-modal').classList.remove('hidden');
+            document.getElementById('bm-adv-filter-modal').classList.add('flex');
+        }
+        function closeBmAdvFilters() { closeModal('bm-adv-filter-modal'); }
+        function clearBmAdvFilters(apply = true) {
+            const inputs = document.getElementById('bm-adv-filter-grid').querySelectorAll('input');
+            inputs.forEach(inp => inp.value = '');
+            if(apply) applyBestMatchesFilters();
+        }
+        function applyBmAdvFilters() { applyBestMatchesFilters(); closeBmAdvFilters(); }
+
+        function openAllModelFilters() {
+            document.getElementById('all-model-filter-modal').classList.remove('hidden');
+            document.getElementById('all-model-filter-modal').classList.add('flex');
+        }
+        function closeAllModelFilters() { closeModal('all-model-filter-modal'); }
+        function clearAllModelFilters(apply = true) {
+            ['all-model-m1', 'all-model-m2', 'all-model-m3', 'all-model-m4'].forEach(id => document.getElementById(id).value = '');
+            if(apply) applyAllMatchesFilters();
+        }
+        function applyAllModelFilters() { applyAllMatchesFilters(); closeAllModelFilters(); }
+
+        function openBmModelFilters() {
+            document.getElementById('bm-model-filter-modal').classList.remove('hidden');
+            document.getElementById('bm-model-filter-modal').classList.add('flex');
+        }
+        function closeBmModelFilters() { closeModal('bm-model-filter-modal'); }
+        function clearBmModelFilters(apply = true) {
+            ['bm-model-m1', 'bm-model-m2', 'bm-model-m3', 'bm-model-m4'].forEach(id => document.getElementById(id).value = '');
+            if(apply) applyBestMatchesFilters();
+        }
+        function applyBmModelFilters() { applyBestMatchesFilters(); closeBmModelFilters(); }
         
-        // Render dynamic parts
-        renderAdvancedFilters();
-    }
-
-    // Bootstrap
-    window.onload = () => {
-        initEvents();
-        initAuthListeners();
-    };
-
-</script>
+        function openAnalysisDrilldown(modelIdx, category) {
+            const models = [
+                { name: 'Model 1', predCol: 'Prediction' },
+                { name: 'Model 2', predCol: 'Match Prediction Tip' },
+                { name: 'Model 3', predCol: 'Match outcome Prediction' },
+                { name: 'Model 4', predCol: 'Model Prediction' }
+            ];
+            const model = models[modelIdx];
+            
+            let categoryLabel = category === 'ALL' ? 'Overall' : (category === '1' ? 'Home Wins' : (category === 'X' ? 'Draws' : 'Away Wins'));
+            document.getElementById('drilldown-title').innerHTML = `<span>📊</span> ${model.name} (${model.predCol}) - ${categoryLabel}`;
+            document.getElementById('drilldown-pred-header').textContent = `Prediction (${model.name})`;
+            
+            const tbody = document.getElementById('drilldown-tbody');
+            tbody.innerHTML = '';
+            
+            let matchCount = 0;
+            
+            currentAnalysisData.forEach(row => {
+                const result = getVal(row, 'Match Result');
+                const actual = getActualOutcome(result);
+                if (!actual) return;
+                
+                if (category !== 'ALL' && actual !== category) return;
+                
+                const rawPred = getVal(row, model.predCol);
+                const predNorm = normalizePrediction(rawPred);
+                if (!predNorm) return; 
+                
+                matchCount++;
+                const isCorrect = predNorm === actual;
+                const predColorClass = isCorrect ? 'win-green' : 'loss-red';
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-indigo-50/50 transition-colors text-sm border-b border-gray-100 last:border-0">
+                        <td class="py-3 px-3 font-bold text-customNavy truncate max-w-[150px]" title="${getVal(row, 'Home Team')}">${getVal(row, 'Home Team') || '-'}</td>
+                        <td class="py-3 px-3 font-bold text-gray-800 truncate max-w-[150px]" title="${getVal(row, 'Away Team')}">${getVal(row, 'Away Team') || '-'}</td>
+                        <td class="py-3 px-3 text-center text-gray-500 font-medium">${getVal(row, 'Home Odds') || '-'}</td>
+                        <td class="py-3 px-3 text-center text-gray-500 font-medium">${getVal(row, 'Draw Odds') || '-'}</td>
+                        <td class="py-3 px-3 text-center text-gray-500 font-medium">${getVal(row, 'Away Odds') || '-'}</td>
+                        <td class="py-3 px-3 text-center font-extrabold text-base tracking-wide">${result}</td>
+                        <td class="py-3 px-3 text-center border-l border-indigo-100 bg-indigo-50/30">
+                            <span class="${predColorClass} px-3 py-1 rounded shadow-sm font-bold border ${isCorrect ? 'border-green-300' : 'border-red-300'} inline-block min-w-[50px]">${rawPred || '-'}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            document.getElementById('drilldown-count').innerHTML = `<span class="bg-gray-200 px-2 py-1 rounded text-gray-800">Total Matches matching criteria: <strong>${matchCount}</strong></span>`;
+            document.getElementById('analysis-drilldown-modal').classList.remove('hidden');
+            document.getElementById('analysis-drilldown-modal').classList.add('flex');
+        }
+    </script>
 </body>
 </html>
